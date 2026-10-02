@@ -1,0 +1,90 @@
+{
+  "receipt": "001-first-deploy",
+  "date": "2026-10-02",
+  "deploy": {
+    "status": "blocked",
+    "worker": "blackbox",
+    "target": "workers.dev",
+    "reason": "local guardrail ban-host rule: the account workers.dev subdomain is a teaching-demo/SIRT subdomain marked do-not-deploy; also flags public AI/D1/R2 bindings without auth. Not overridden.",
+    "url": null
+  },
+  "verify": {
+    "command": "bun run verify",
+    "result": "pass",
+    "tests": 11
+  },
+  "d1": {
+    "database": "blackbox",
+    "created": true
+  },
+  "r2": {
+    "bucket": "blackbox-logs",
+    "created": true
+  },
+  "clef_run": {
+    "env": "wrangler dev (remote AI binding via AI Gateway default)",
+    "result": {
+      "recording": "sample-wrong-key",
+      "model": "@cf/cloudflare/clef",
+      "gateway": "default",
+      "question": "Is this the step where the run went wrong?",
+      "failureIndex": 2,
+      "failureStep": {
+        "index": 2,
+        "kind": "assistant",
+        "name": "assistant",
+        "summary": "I probably don't need to check the codemode docs in detail—I can just write this out directly, defining criteria with true/false outcomes and clear descriptions for each. → codemode"
+      },
+      "scores": [
+        {
+          "index": 0,
+          "probability": 0.0147
+        },
+        {
+          "index": 1,
+          "probability": 0.0199
+        },
+        {
+          "index": 2,
+          "probability": 0.5363
+        },
+        {
+          "index": 3,
+          "probability": 0.4333
+        },
+        {
+          "index": 4,
+          "probability": 0.0396
+        },
+        {
+          "index": 5,
+          "probability": 0.0321
+        },
+        {
+          "index": 6,
+          "probability": 0.0439
+        },
+        {
+          "index": 7,
+          "probability": 0.0679
+        },
+        {
+          "index": 8,
+          "probability": 0.0273
+        },
+        {
+          "index": 9,
+          "probability": 0.0257
+        },
+        {
+          "index": 10,
+          "probability": 0.0842
+        }
+      ]
+    }
+  },
+  "narration": {
+    "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+    "streamed": true
+  }
+}
