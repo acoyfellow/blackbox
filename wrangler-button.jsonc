@@ -1,0 +1,24 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "blackbox",
+  "main": "src/standalone/index.ts",
+  "compatibility_date": "2026-04-17",
+  "workers_dev": true,
+  "preview_urls": false,
+  "rules": [{ "type": "Text", "globs": ["**/*.jsonl"], "fallthrough": true }],
+  "assets": {
+    "directory": "dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "ai": { "binding": "AI" },
+  "d1_databases": [{ "binding": "DB", "database_name": "blackbox" }],
+  "r2_buckets": [{ "binding": "LOGS", "bucket_name": "blackbox-logs" }],
+  "ratelimits": [
+    { "name": "UPLOAD_LIMIT", "namespace_id": "4101", "simple": { "limit": 5, "period": 60 } },
+    { "name": "NARRATE_LIMIT", "namespace_id": "4102", "simple": { "limit": 5, "period": 60 } },
+    { "name": "READ_LIMIT", "namespace_id": "4103", "simple": { "limit": 60, "period": 60 } }
+  ],
+  "observability": { "enabled": true }
+}

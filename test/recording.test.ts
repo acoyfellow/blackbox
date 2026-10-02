@@ -83,13 +83,15 @@ describe('clef', () => {
 
 describe('safety', () => {
   test('redacts internal hosts and home paths', () => {
-    expect(redact('see foo.' + 'cloudflare.' + 'dev' + ' and /Users/someone/x')).toBe(
+    expect(redact('see foo.corp and /Users/someone/x')).toBe(
       'see redacted.host and /Users/pilot/x',
     );
   });
 
   test('samples contain no internal hostnames', () => {
-    expect(`${wrongKey}${recovered}`).not.toMatch(/\.internal\b|\.corp\b|/Users\/[a-z]+\//);
+    expect(`${wrongKey}${recovered}`).not.toMatch(
+      new RegExp(String.raw`\.internal\b|\.corp\b|/Users/(?!pilot/)[a-z]+/`),
+    );
   });
 
   test('sse parsing yields tokens and keeps partial lines', () => {

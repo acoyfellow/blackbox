@@ -12,7 +12,7 @@
     "copy-check": "bun scripts/copy-check.ts",
     "verify": "bun run check && bun run lint && bun run copy-check && bun run test",
     "samples": "bun scripts/make-samples.ts",
-    "deploy": "vite build && wrangler deploy",
+    "deploy": "vite build && wrangler deploy -c wrangler-button.jsonc",
     "deploy:prod": "vite build && wrangler deploy -c core/wrangler.prod.jsonc && wrangler deploy -c wrangler.prod.jsonc"
   },
   "devDependencies": {
