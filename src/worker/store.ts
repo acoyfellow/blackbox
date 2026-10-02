@@ -36,6 +36,7 @@ export async function uploadsInLastHour(db: D1Binding, ip: string, now: number):
     .prepare('SELECT COUNT(*) AS n FROM uploads WHERE ip = ? AND at > ?')
     .bind(ip, now - 3_600_000)
     .first();
+
   return countSchema.parse(row).n;
 }
 
@@ -77,11 +78,14 @@ export async function loadRecording(
   id: string,
 ): Promise<RecordingView | null> {
   const row = await db.prepare('SELECT * FROM recordings WHERE id = ?').bind(id).first();
+
   if (!row) return null;
   const meta = rowSchema.parse(row);
   const object = await logs.get(`parsed/${id}.json`);
+
   if (!object) return null;
   const recording = recordingSchema.parse(JSON.parse(await object.text()));
+
   return {
     ...recording,
     id: meta.id,
@@ -106,5 +110,6 @@ export async function listRecordings(db: D1Binding) {
       'SELECT id, title, model, steps, created_at, failure_index FROM recordings ORDER BY created_at DESC LIMIT 30',
     )
     .all();
+
   return z.array(listItemSchema).parse(results);
 }

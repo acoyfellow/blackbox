@@ -1,6 +1,7 @@
 <script lang="ts">
 let { label, value, max, display }: { label: string; value: number; max: number; display: string } =
   $props();
+
 const ratio = $derived(max > 0 ? Math.min(1, value / max) : 0);
 </script>
 

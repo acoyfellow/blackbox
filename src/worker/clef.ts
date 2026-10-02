@@ -2,13 +2,36 @@ import { z } from 'zod';
 import { clip, type Score, type Step } from '../shared/recording';
 
 export const CLEF_MODEL = '@cf/cloudflare/clef';
+
 export const NARRATOR_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
+
 export const GATEWAY = { gateway: { id: 'default' } };
+
 const MAX_QUESTIONS = 64;
+
 export const FAILURE_QUESTION = 'Is this the step where the run went wrong?';
 
+export type JsonValue = z.core.util.JSONType;
+
+export type AiReply = JsonValue | ReadableStream;
+
+export interface ChatMessage {
+  role: string;
+  content: string;
+}
+
+export interface NarratorInput {
+  messages: ChatMessage[];
+  stream: boolean;
+  max_tokens: number;
+}
+
+export type ClefInput = ReturnType<typeof clefPayload>;
+
+export type GatewayOptions = typeof GATEWAY;
+
 export interface AiBinding {
-  run(model: string, input: object, options?: object): Promise<unknown>;
+  run(model: string, input: ClefInput | NarratorInput, options: GatewayOptions): Promise<AiReply>;
 }
 
 const clefReply = z.object({
@@ -20,16 +43,19 @@ const clefReply = z.object({
 
 const wrappedReply = z.object({ result: clefReply });
 
-export function parseClefReply(raw: unknown): Record<string, number> {
+export function parseClefReply(raw: AiReply): Record<string, number> {
   const direct = clefReply.safeParse(raw);
   const wrapped = wrappedReply.safeParse(raw);
+
   const answers = direct.success
     ? direct.data.answers
     : wrapped.success
       ? wrapped.data.result.answers
       : null;
+
   if (!answers)
     throw new Error(`clef reply did not match schema: ${clip(JSON.stringify(raw), 200)}`);
+
   return Object.fromEntries(Object.entries(answers).map(([key, value]) => [key, value.noul]));
 }
 
@@ -41,6 +67,7 @@ export function clefPayload(title: string, steps: Step[], window: Step[]) {
     error: step.isError,
     detail: clip(step.summary, 220),
   }));
+
   const questions = Object.fromEntries(
     window.map((step) => [
       `step_${step.index}`,
@@ -50,34 +77,45 @@ export function clefPayload(title: string, steps: Step[], window: Step[]) {
       },
     ]),
   );
+
   return { state: { run: title, timeline }, questions };
 }
 
 export async function scoreSteps(ai: AiBinding, title: string, steps: Step[]): Promise<Score[]> {
   const scores: Score[] = [];
+
   for (let offset = 0; offset < steps.length; offset += MAX_QUESTIONS) {
     const window = steps.slice(offset, offset + MAX_QUESTIONS);
     const raw = await ai.run(CLEF_MODEL, clefPayload(title, steps, window), GATEWAY);
     const answers = parseClefReply(raw);
+
     for (const step of window) {
       const probability = answers[`step_${step.index}`];
+
       if (probability !== undefined) scores.push({ index: step.index, probability });
     }
   }
+
   return scores;
 }
 
-export function narrationMessages(title: string, steps: Step[], failureIndex: number | null) {
+export function narrationMessages(
+  title: string,
+  steps: Step[],
+  failureIndex: number | null,
+): ChatMessage[] {
   const log = steps
     .map(
       (step) =>
         `${step.index}. [${step.kind}:${step.name}${step.isError ? ' ERROR' : ''}] ${clip(step.summary, 200)}`,
     )
     .join('\n');
+
   const marker =
     failureIndex === null
       ? 'The scorer found no clear failure step.'
       : `The scorer marked step ${failureIndex} as where the run went wrong.`;
+
   return [
     {
       role: 'system',

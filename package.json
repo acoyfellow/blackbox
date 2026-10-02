@@ -6,19 +6,22 @@
   "scripts": {
     "build": "vite build",
     "check": "tsc -p tsconfig.json && svelte-check --tsconfig ./tsconfig.json --fail-on-warnings",
-    "lint": "biome check .",
+    "lint": "git submodule update --init --quiet tools/anti-slop && biome check . && oxlint",
     "format": "biome check --write .",
-    "test": "bun test",
+    "test": "bun test ./test",
     "copy-check": "bun scripts/copy-check.ts",
-    "verify": "bun run check && bun run lint && bun run test && bun run copy-check",
+    "verify": "bun run check && bun run lint && bun run copy-check && bun run test",
     "samples": "bun scripts/make-samples.ts",
-    "deploy": "vite build && wrangler deploy -c core/wrangler.jsonc && wrangler deploy"
+    "deploy": "vite build && wrangler deploy",
+    "deploy:prod": "vite build && wrangler deploy -c core/wrangler.prod.jsonc && wrangler deploy -c wrangler.prod.jsonc"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.15",
+    "@oxlint/plugins": "1.86.0",
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
     "@tailwindcss/vite": "^4.3.3",
     "@types/bun": "^1.4.2",
+    "oxlint": "1.86.0",
     "svelte": "^5.57.1",
     "svelte-check": "^4.7.6",
     "tailwindcss": "^4.3.3",

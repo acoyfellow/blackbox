@@ -7,35 +7,53 @@ import Gauge from './Gauge.svelte';
 let { view }: { view: RecordingView } = $props();
 
 let cursor = $state(0);
+
 let playing = $state(false);
+
 let narration = $state('');
+
 let narrating = $state(false);
+
 let narrationProblem = $state('');
 
 const steps = $derived(view.steps);
+
 const current = $derived<Step | undefined>(steps[cursor]);
+
 const flown = $derived(steps.slice(0, cursor + 1));
+
 const totalCost = $derived(steps.reduce((sum, step) => sum + step.costUsd, 0));
+
 const totalTokens = $derived(
   steps.reduce((sum, step) => sum + step.inputTokens + step.outputTokens, 0),
 );
+
 const flownCost = $derived(flown.reduce((sum, step) => sum + step.costUsd, 0));
+
 const flownTokens = $derived(
   flown.reduce((sum, step) => sum + step.inputTokens + step.outputTokens, 0),
 );
+
 const errors = $derived(flown.filter((step) => step.isError).length);
+
 const tools = $derived(flown.filter((step) => step.kind === 'tool').length);
+
 const span = $derived(Math.max(1, steps.at(-1)?.endMs ?? 1));
+
 const risk = $derived(new Map(view.scores.map((score) => [score.index, score.probability])));
+
 const currentRisk = $derived(risk.get(cursor) ?? 0);
+
 const durationS = $derived(current ? (current.endMs - current.startMs) / 1000 : 0);
 
 $effect(() => {
   if (!playing) return;
+
   const timer = setInterval(() => {
     if (cursor >= steps.length - 1) playing = false;
     else cursor += 1;
   }, 700);
+
   return () => clearInterval(timer);
 });
 
@@ -43,28 +61,36 @@ async function startNarration() {
   narration = '';
   narrationProblem = '';
   narrating = true;
+
   try {
     await narrate(view.id, (token) => {
       narration += token;
     });
   } catch (error) {
-    narrationProblem = friendlyError(error);
+    narrationProblem = friendlyError(error instanceof Error ? error : null);
   }
+
   narrating = false;
 }
 
 function barClass(step: Step): string {
   if (step.index === view.failureIndex)
     return 'bg-red-500 shadow-[0_0_14px_rgba(239,68,68,0.9)] animate-pulse';
+
   if (step.isError) return 'bg-orange-500/80';
+
   if (step.kind === 'tool') return 'bg-emerald-400/80';
+
   if (step.kind === 'assistant') return 'bg-sky-400/70';
+
   return 'bg-zinc-500/60';
 }
 
 function onKey(event: KeyboardEvent) {
   if (event.key === 'ArrowRight') cursor = Math.min(steps.length - 1, cursor + 1);
+
   if (event.key === 'ArrowLeft') cursor = Math.max(0, cursor - 1);
+
   if (event.key === ' ') playing = !playing;
 }
 </script>

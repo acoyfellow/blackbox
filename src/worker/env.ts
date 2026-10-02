@@ -1,10 +1,14 @@
-import type { AiBinding } from './clef';
+import type { AiBinding, JsonValue } from './clef';
+
+export interface D1RunResult {
+  success: boolean;
+}
 
 export interface D1Statement {
   bind(...values: (string | number | null)[]): D1Statement;
-  first(): Promise<unknown>;
-  all(): Promise<{ results: unknown[] }>;
-  run(): Promise<unknown>;
+  first(): Promise<JsonValue>;
+  all(): Promise<{ results: JsonValue[] }>;
+  run(): Promise<D1RunResult>;
 }
 
 export interface D1Binding {
@@ -16,7 +20,7 @@ export interface R2Object {
 }
 
 export interface R2Binding {
-  put(key: string, value: string): Promise<unknown>;
+  put(key: string, value: string): Promise<R2Object | null>;
   get(key: string): Promise<R2Object | null>;
 }
 

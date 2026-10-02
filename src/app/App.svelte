@@ -5,10 +5,15 @@ import { fetchList, fetchRecording, friendlyError, type RecordingList, uploadLog
 import Replay from './Replay.svelte';
 
 let path = $state(window.location.pathname);
+
 let view = $state<RecordingView | null>(null);
+
 let list = $state<RecordingList | null>(null);
+
 let loading = $state('');
+
 let problem = $state('');
+
 let listFailed = $state(false);
 
 const recordingId = $derived(path.startsWith('/r/') ? path.slice(3) : null);
@@ -16,6 +21,7 @@ const recordingId = $derived(path.startsWith('/r/') ? path.slice(3) : null);
 $effect(() => {
   const id = recordingId;
   view = null;
+
   if (id) {
     problem = '';
     loading =
@@ -24,8 +30,8 @@ $effect(() => {
       .then((loaded) => {
         view = loaded;
       })
-      .catch((error: unknown) => {
-        problem = friendlyError(error);
+      .catch((error: Error) => {
+        problem = friendlyError(error instanceof Error ? error : null);
       })
       .finally(() => {
         loading = '';
@@ -49,24 +55,31 @@ function go(next: string) {
 
 async function onFile(event: Event) {
   const input = event.currentTarget;
+
   if (!(input instanceof HTMLInputElement)) return;
   const file = input.files?.[0];
+
   if (!file) return;
   problem = '';
+
   if (file.size > MAX_UPLOAD_BYTES) {
     problem = 'This file is larger than 5 MB. Upload a smaller log.';
     input.value = '';
+
     return;
   }
+
   loading = 'Uploading and scoring each step with Clef…';
+
   try {
     const id = await uploadLog(file);
     loading = '';
     go(`/r/${id}`);
   } catch (error) {
     loading = '';
-    problem = friendlyError(error);
+    problem = friendlyError(error instanceof Error ? error : null);
   }
+
   input.value = '';
 }
 </script>

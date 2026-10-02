@@ -12,6 +12,7 @@ import { clefPayload, parseClefReply } from '../src/worker/clef';
 const wrongKey = await Bun.file(
   new URL('../samples/sample-wrong-key.jsonl', import.meta.url),
 ).text();
+
 const recovered = await Bun.file(
   new URL('../samples/sample-recovered-landing.jsonl', import.meta.url),
 ).text();
@@ -34,6 +35,7 @@ describe('pi json parsing', () => {
   test('timeline is monotonic from zero', () => {
     const steps = parsePiEvents(wrongKey, 'x')?.steps ?? [];
     expect(steps[0]?.startMs).toBe(0);
+
     for (const step of steps) expect(step.endMs).toBeGreaterThanOrEqual(step.startMs);
   });
 
@@ -46,6 +48,7 @@ describe('terrarium log parsing', () => {
   test('header and exit become phases', () => {
     const log =
       'terrarium 0.0.1\nrun: ter_x\nmodel: m1\nagent: pi -p\ntask: do it\n\nstartup-timeout\nexit: 143\n';
+
     const recording = parseTerrariumLog(log, 'fallback');
     expect(recording?.title).toBe('ter_x');
     expect(recording?.steps.at(-1)?.isError).toBe(true);
@@ -93,6 +96,7 @@ describe('safety', () => {
     const { tokens, rest } = sseTokens(
       'data: {"response":"Good"}\ndata: {"response":" day"}\ndata: {"resp',
     );
+
     expect(tokens.join('')).toBe('Good day');
     expect(rest).toBe('data: {"resp');
   });
@@ -109,6 +113,7 @@ describe('safety', () => {
         '',
       ].join('\n'),
     );
+
     expect(tokens.join('')).toBe('errors at waypoints 3 and 45 and 6.');
   });
 });

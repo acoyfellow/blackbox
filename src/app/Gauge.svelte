@@ -8,7 +8,9 @@ let {
 }: { label: string; value: number; max: number; display: string; alarm?: boolean } = $props();
 
 const ratio = $derived(max > 0 ? Math.min(1, Math.max(0, value / max)) : 0);
+
 const angle = $derived(-120 + ratio * 240);
+
 const ticks = Array.from({ length: 13 }, (_, i) => -120 + i * 20);
 </script>
 

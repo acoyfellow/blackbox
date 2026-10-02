@@ -1,7 +1,9 @@
 import { z } from 'zod';
 
 export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+
 export const UPLOADS_PER_IP_PER_HOUR = 20;
+
 const SUMMARY_LIMIT = 600;
 
 export const stepSchema = z.object({
@@ -16,6 +18,7 @@ export const stepSchema = z.object({
   costUsd: z.number().nonnegative(),
   summary: z.string(),
 });
+
 export type Step = z.infer<typeof stepSchema>;
 
 export const recordingSchema = z.object({
@@ -24,12 +27,14 @@ export const recordingSchema = z.object({
   model: z.string(),
   steps: z.array(stepSchema),
 });
+
 export type Recording = z.infer<typeof recordingSchema>;
 
 export const scoreSchema = z.object({
   index: z.number().int().nonnegative(),
   probability: z.number().min(0).max(1),
 });
+
 export type Score = z.infer<typeof scoreSchema>;
 
 export const recordingViewSchema = recordingSchema.extend({
@@ -38,6 +43,7 @@ export const recordingViewSchema = recordingSchema.extend({
   scores: z.array(scoreSchema),
   failureIndex: z.number().int().nullable(),
 });
+
 export type RecordingView = z.infer<typeof recordingViewSchema>;
 
 const usageSchema = z
@@ -74,7 +80,7 @@ const piEventSchema = z.discriminatedUnion('type', [
     type: z.literal('tool_execution_start'),
     toolCallId: z.string(),
     toolName: z.string(),
-    args: z.unknown().optional(),
+    args: z.json().optional(),
     parentToolCallId: z.string().optional(),
   }),
   z.object({
@@ -82,53 +88,69 @@ const piEventSchema = z.discriminatedUnion('type', [
     toolCallId: z.string(),
     toolName: z.string(),
     isError: z.boolean().optional(),
-    result: z.unknown().optional(),
+    result: z.json().optional(),
     parentToolCallId: z.string().optional(),
   }),
   z.object({ type: z.literal('message_end'), message: messageSchema }),
 ]);
+
 type PiEvent = z.infer<typeof piEventSchema>;
+
 type Message = z.infer<typeof messageSchema>;
 
 export function clip(text: string, limit = SUMMARY_LIMIT): string {
   const flat = text.replace(/\s+/g, ' ').trim();
+
   return flat.length > limit ? `${flat.slice(0, limit - 1)}…` : flat;
 }
 
-function stringify(value: unknown): string {
-  if (typeof value === 'string') return value;
+function stringify(value: z.core.util.JSONType | undefined): string {
+  const text = z.string().safeParse(value);
+
+  if (text.success) return text.data;
+
   return JSON.stringify(value) ?? '';
 }
 
-function resultText(result: unknown): string {
+function resultText(result: z.core.util.JSONType | undefined): string {
   const parsed = z.object({ content: z.array(contentPartSchema) }).safeParse(result);
+
   if (!parsed.success) return stringify(result);
+
   return parsed.data.content.map((part) => part.text ?? '').join(' ');
 }
 
 function messageText(message: Message): string {
-  if (typeof message.content === 'string') return message.content;
-  return (message.content ?? [])
+  const plain = z.string().safeParse(message.content);
+
+  if (plain.success) return plain.data;
+
+  return (z.array(contentPartSchema).safeParse(message.content).data ?? [])
     .map((part) => part.text ?? part.thinking ?? (part.name ? `tool call: ${part.name}` : ''))
     .join(' ');
 }
 
 function parseJsonLines(text: string): PiEvent[] {
   const events: PiEvent[] = [];
+
   for (const line of text.split('\n')) {
     const trimmed = line.trim();
+
     if (!trimmed.startsWith('{')) continue;
     const json = z.json().safeParse(safeJson(trimmed));
+
     if (!json.success) continue;
     const event = piEventSchema.safeParse(json.data);
+
     if (event.success) events.push(event.data);
   }
+
   return events;
 }
 
-function safeJson(text: string): unknown {
+function safeJson(text: string): z.core.util.JSONType | undefined {
   try {
-    return JSON.parse(text);
+    return z.json().parse(JSON.parse(text));
   } catch {
     return undefined;
   }
@@ -151,8 +173,10 @@ export function parsePiEvents(text: string, title: string): Recording | null {
   for (const event of events) {
     if (event.type === 'session' && event.timestamp) {
       const parsed = Date.parse(event.timestamp);
+
       if (!Number.isNaN(parsed)) clock = parsed;
     }
+
     if (event.type === 'tool_execution_start' && !event.parentToolCallId) {
       open.set(event.toolCallId, {
         name: event.toolName,
@@ -160,6 +184,7 @@ export function parsePiEvents(text: string, title: string): Recording | null {
         args: stringify(event.args),
       });
     }
+
     if (event.type === 'tool_execution_end' && !event.parentToolCallId) {
       const started = open.get(event.toolCallId);
       open.delete(event.toolCallId);
@@ -177,22 +202,30 @@ export function parsePiEvents(text: string, title: string): Recording | null {
         ),
       });
     }
+
     if (event.type === 'message_end') {
       const message = event.message;
       const previous = clock;
+
       if (message.timestamp) clock = Math.max(clock, message.timestamp);
+
       if (message.model) model = message.model;
       const last = steps.at(-1);
+
       if (message.role === 'toolResult') {
         if (last && last.kind === 'tool' && last.endMs < clock) last.endMs = clock;
+
         if (last && last.kind === 'tool') {
           last.inputTokens += message.usage?.input ?? 0;
           last.costUsd += message.usage?.cost?.total ?? 0;
         }
+
         continue;
       }
+
       const role =
         message.role === 'assistant' || message.role === 'user' ? message.role : 'system';
+
       const usage = message.usage;
       push({
         kind: role,
@@ -207,12 +240,15 @@ export function parsePiEvents(text: string, title: string): Recording | null {
       });
     }
   }
+
   if (steps.length === 0) return null;
+
   return { format: 'pi-json', title, model, steps: fixClock(steps) };
 }
 
 function fixClock(steps: Step[]): Step[] {
   const origin = steps.find((step) => step.startMs > 0)?.startMs ?? 0;
+
   return steps.map((step) => ({
     ...step,
     startMs: Math.max(0, step.startMs - origin),
@@ -226,33 +262,42 @@ export function parseTerrariumLog(text: string, title: string): Recording | null
   if (!text.startsWith('terrarium')) return null;
   const embedded = parsePiEvents(text, title);
   const headers = new Map<string, string>();
+
   for (const line of text.split('\n')) {
     const match = headerLine.exec(line);
+
     if (match?.[1] && match[2] !== undefined && !headers.has(match[1]))
       headers.set(match[1], match[2]);
   }
+
   const model = headers.get('model') ?? embedded?.model ?? 'unknown';
   const exit = headers.get('exit');
   const failed = exit !== undefined && exit !== '0';
+
   const phases: Step[] = [
     phase(0, 'spawn', `agent ${headers.get('agent') ?? '?'}`, false),
     phase(1, 'task', headers.get('task') ?? '', false),
   ];
+
   const body = embedded?.steps ?? [];
   const shifted = body.map((step, offset) => ({ ...step, index: offset + 2 }));
+
   const tail = text
     .split('\n')
     .filter((line) => line.trim() && !line.startsWith('{'))
     .slice(-6);
+
   const exitStep = phase(
     shifted.length + 2,
     'exit',
     `${exit ?? 'unknown'} ${tail.join(' ')}`,
     failed,
   );
+
   const lastEnd = shifted.at(-1)?.endMs ?? 0;
   exitStep.startMs = lastEnd;
   exitStep.endMs = lastEnd + 1000;
+
   return {
     format: 'terrarium',
     title: headers.get('run') ?? title,
@@ -285,6 +330,7 @@ export function failureIndexFrom(scores: Score[]): number | null {
     (best, score) => (best === null || score.probability > best.probability ? score : best),
     null,
   );
+
   return top && top.probability >= 0.5 ? top.index : null;
 }
 
