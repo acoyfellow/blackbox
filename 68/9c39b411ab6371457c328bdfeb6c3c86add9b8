@@ -1,0 +1,23 @@
+.guardrailignore
+  s_9543e9b013f284::t_7573a64c26533a 2
+package.json
+  s_9543e9b013f284::t_cbd2d1bfc6f72a 15
+wrangler-button.jsonc
+  s_9543e9b013f284::t_b13b740c2f2358 1-24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "689c39b411ab6371457c328bdfeb6c3c86add9b8",
+  "prompts": {},
+  "sessions": {
+    "s_9543e9b013f284": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019e27e9-dbc8-74d4-83bf-3b7f2697402e",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Jordan Coeyman <coeyman@gmail.com>"
+    }
+  }
+}
