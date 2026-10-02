@@ -2,13 +2,15 @@
   "name": "blackbox",
   "type": "module",
   "private": true,
+  "description": "Replay a Pi --mode json agent log as a timeline, with Clef scoring the step where the run went wrong.",
   "scripts": {
     "build": "vite build",
     "check": "tsc -p tsconfig.json && svelte-check --tsconfig ./tsconfig.json --fail-on-warnings",
     "lint": "biome check .",
     "format": "biome check --write .",
     "test": "bun test",
-    "verify": "bun run check && bun run lint && bun run test",
+    "copy-check": "bun scripts/copy-check.ts",
+    "verify": "bun run check && bun run lint && bun run test && bun run copy-check",
     "samples": "bun scripts/make-samples.ts",
     "deploy": "vite build && wrangler deploy -c core/wrangler.jsonc && wrangler deploy"
   },

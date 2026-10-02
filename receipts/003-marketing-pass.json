@@ -1,0 +1,76 @@
+{
+  "receipt": "003-marketing-pass",
+  "date": "2026-10-02",
+  "url": "https://blackbox.coey.dev",
+  "copy": {
+    "before": {
+      "title": "BLACKBOX \u00b7 flight recorder for agent runs",
+      "description": null
+    },
+    "after": {
+      "title": "BLACKBOX: replay a Pi agent run and find the fault",
+      "description": "Upload a Pi --mode json log. BLACKBOX replays each step, uses the Clef model to score which step went wrong, and gives you a share URL."
+    }
+  },
+  "deploy": {
+    "core": {
+      "name": "blackbox-core",
+      "version": "60d1e1f5-0124-4a58-8b96-0c0bff3acd77"
+    },
+    "front": {
+      "name": "blackbox",
+      "version": "09706659-e921-448d-947b-aba3d81ea6d6"
+    },
+    "liveBundle": "/assets/index-CgjAXePG.js",
+    "localBundle": "dist/assets/index-CgjAXePG.js",
+    "match": true
+  },
+  "live": {
+    "root": {
+      "status": 200,
+      "hasOgImage": true,
+      "canonical": "<link rel=\"canonical\" href=\"https://blackbox.coey.dev/\" />"
+    },
+    "og.jpg": {
+      "status": 200,
+      "type": "image/jpeg",
+      "bytes": 52803,
+      "size": "1200x630"
+    },
+    "robots.txt": {
+      "status": 200,
+      "bytes": 71
+    },
+    "sitemap.xml": {
+      "status": 200,
+      "bytes": 161
+    },
+    "favicon.svg": {
+      "status": 200,
+      "bytes": 259
+    },
+    "liveBundleReadsDeltaContent": true,
+    "e2e": {
+      "upload": {
+        "status": 201,
+        "body": "{\"id\":\"ebb401f2-7f7\",\"failureIndex\":2,\"steps\":7,\"url\":\"/r/ebb401f2-7f7\"}"
+      },
+      "get": 200,
+      "narration": "We are reviewing the marketing-pass-e2e recording. The scorer identified waypoint 2 as the point where the run encountered issues. At waypoint 2, the assistant recognized that placeholders in the prompt were unresolved and attempted to create a script to determine the actual files. The assistant's approach involved incrementing issue numbers until one failed. This decision led to the subsequent tool call at waypoint 4, which resulted in an error at waypoint 3. The error was later resolved at waypoint 5, allowing the assistant to successfully load and classify issues at waypoint 6."
+    },
+    "viewports": {
+      "390": "scrollWidth 390, one h1, 0 unnamed controls, 0 images without alt",
+      "1440": "scrollWidth 1440, one h1, 0 unnamed controls, 0 images without alt"
+    }
+  },
+  "fixes": {
+    "narrationDigits": "Parser read only `response`; some number chunks carried digits only in choices[0].delta.content. Now reads delta.content first. Test: 'sse parsing keeps digits in narration chunks'."
+  },
+  "checks": {
+    "verify": "pass: 12 tests, copy-check 15 files clean",
+    "guardrail": {
+      "critical": 0,
+      "output": "\ud83d\udd0d 2 config(s) checked. 1 with findings:\n\n\ud83d\udfe1 blackbox\n   wrangler.jsonc\n  \ud83d\udfe1 Worker is attached to custom route blackbox.coey.dev with sensitive bindings\n  \ud83d\udfe1 service binding \"CORE\" exposed on custom route blackbox.coey.dev\n\n1 clean. 1 need attention."
+    }
+  }
+}

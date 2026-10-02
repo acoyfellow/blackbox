@@ -1,7 +1,7 @@
 <script lang="ts">
 import type { RecordingView, Step } from '../shared/recording';
 import Altimeter from './Altimeter.svelte';
-import { narrate } from './api';
+import { friendlyError, narrate } from './api';
 import Gauge from './Gauge.svelte';
 
 let { view }: { view: RecordingView } = $props();
@@ -10,6 +10,7 @@ let cursor = $state(0);
 let playing = $state(false);
 let narration = $state('');
 let narrating = $state(false);
+let narrationProblem = $state('');
 
 const steps = $derived(view.steps);
 const current = $derived<Step | undefined>(steps[cursor]);
@@ -40,13 +41,14 @@ $effect(() => {
 
 async function startNarration() {
   narration = '';
+  narrationProblem = '';
   narrating = true;
   try {
     await narrate(view.id, (token) => {
       narration += token;
     });
   } catch (error) {
-    narration = error instanceof Error ? error.message : 'narration failed';
+    narrationProblem = friendlyError(error);
   }
   narrating = false;
 }
@@ -73,7 +75,7 @@ function onKey(event: KeyboardEvent) {
   <header class="flex flex-wrap items-end justify-between gap-4 border-b border-zinc-800 pb-4">
     <div>
       <div class="font-mono text-[10px] tracking-[0.4em] text-amber-400/80 uppercase">Recording {view.id}</div>
-      <h1 class="text-2xl font-semibold text-zinc-100">{view.title}</h1>
+      <h1 class="break-words text-2xl font-semibold text-zinc-100">{view.title}</h1>
       <div class="font-mono text-xs text-zinc-500">{view.format} · {view.model} · {steps.length} waypoints</div>
     </div>
     <div class="flex items-center gap-3 font-mono text-xs">
@@ -116,10 +118,11 @@ function onKey(event: KeyboardEvent) {
       min="0"
       max={Math.max(0, steps.length - 1)}
       bind:value={cursor}
+      aria-label="Scrub to a waypoint"
       class="mt-3 w-full accent-amber-400"
     />
     <div class="mt-2 flex items-center justify-between font-mono text-xs text-zinc-500">
-      <button class="rounded border border-zinc-700 px-3 py-1 text-amber-300 hover:bg-zinc-800" onclick={() => (playing = !playing)}>
+      <button class="rounded border border-zinc-700 px-3 py-1 text-amber-300 hover:bg-zinc-800" aria-label={playing ? 'Pause replay' : 'Start replay'} onclick={() => (playing = !playing)}>
         {playing ? '❚❚ HOLD' : '▶ REPLAY'}
       </button>
       <span>T+{((current?.endMs ?? 0) / 1000).toFixed(1)}s / {(span / 1000).toFixed(1)}s</span>
@@ -140,12 +143,13 @@ function onKey(event: KeyboardEvent) {
     {/if}
     <article class="rounded-2xl border border-zinc-800 bg-zinc-950 p-4">
       <div class="mb-2 flex items-center justify-between font-mono text-xs">
-        <span class="tracking-[0.3em] text-zinc-400 uppercase">Captain's narration</span>
+        <h2 class="tracking-[0.3em] text-zinc-400 uppercase">Narration</h2>
         <button class="rounded border border-zinc-700 px-3 py-1 text-sky-300 hover:bg-zinc-800 disabled:opacity-40" disabled={narrating} onclick={startNarration}>
           {narrating ? 'ON AIR…' : 'NARRATE'}
         </button>
       </div>
-      <p class="min-h-24 text-sm leading-relaxed text-sky-100/90">{narration}{#if narrating}<span class="animate-pulse">▍</span>{/if}</p>
+      <p aria-live="polite" class="min-h-24 text-sm leading-relaxed whitespace-pre-wrap text-sky-100/90">{#if narration}{narration}{:else if narrating}Waiting for the first words from Llama 3.3 70B…{:else if !narrationProblem}Press NARRATE for a short summary of this run. The model can get step numbers or causes wrong. Check them against the timeline.{/if}{#if narrating}<span aria-hidden="true" class="animate-pulse">▍</span>{/if}</p>
+      {#if narrationProblem}<p role="alert" class="mt-2 font-mono text-xs text-red-300">{narrationProblem}</p>{/if}
     </article>
   </div>
 </section>

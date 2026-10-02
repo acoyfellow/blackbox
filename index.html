@@ -3,7 +3,36 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>BLACKBOX · flight recorder for agent runs</title>
+    <title>BLACKBOX: replay a Pi agent run and find the fault</title>
+    <meta name="description" content="Upload a Pi --mode json log. BLACKBOX replays each step, uses the Clef model to score which step went wrong, and gives you a share URL." />
+    <link rel="canonical" href="https://blackbox.coey.dev/" />
+    <meta name="theme-color" content="#000000" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <meta property="og:title" content="BLACKBOX: replay a Pi agent run and find the fault" />
+    <meta property="og:description" content="Upload a Pi --mode json log. BLACKBOX replays each step, uses the Clef model to score which step went wrong, and gives you a share URL." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://blackbox.coey.dev/" />
+    <meta property="og:image" content="https://blackbox.coey.dev/og.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="A dark aircraft cockpit with lit orange and green gauges" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="BLACKBOX: replay a Pi agent run and find the fault" />
+    <meta name="twitter:description" content="Upload a Pi --mode json log. BLACKBOX replays each step, uses the Clef model to score which step went wrong, and gives you a share URL." />
+    <meta name="twitter:image" content="https://blackbox.coey.dev/og.jpg" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "BLACKBOX",
+        "url": "https://blackbox.coey.dev/",
+        "description": "Upload a Pi --mode json log. BLACKBOX replays each step, uses the Clef model to score which step went wrong, and gives you a share URL.",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "Any",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "author": { "@type": "Person", "name": "Jordan Coeyman", "url": "https://coey.dev" }
+      }
+    </script>
   </head>
   <body class="bg-black text-zinc-200 antialiased">
     <div id="app"></div>

@@ -96,4 +96,19 @@ describe('safety', () => {
     expect(tokens.join('')).toBe('Good day');
     expect(rest).toBe('data: {"resp');
   });
+
+  test('sse parsing keeps digits in narration chunks', () => {
+    const { tokens } = sseTokens(
+      [
+        'data: {"response":"errors at waypoints"}',
+        'data: {"response":" 3"}',
+        'data: {"response":4,"choices":[{"delta":{"content":" and 4"}}]}',
+        'data: {"response":5}',
+        'data: {"response":"","choices":[{"delta":{"content":" and 6."}}]}',
+        'data: [DONE]',
+        '',
+      ].join('\n'),
+    );
+    expect(tokens.join('')).toBe('errors at waypoints 3 and 45 and 6.');
+  });
 });

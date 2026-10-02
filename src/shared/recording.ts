@@ -109,7 +109,7 @@ function resultText(result: unknown): string {
 function messageText(message: Message): string {
   if (typeof message.content === 'string') return message.content;
   return (message.content ?? [])
-    .map((part) => part.text ?? part.thinking ?? (part.name ? `→ ${part.name}` : ''))
+    .map((part) => part.text ?? part.thinking ?? (part.name ? `tool call: ${part.name}` : ''))
     .join(' ');
 }
 
