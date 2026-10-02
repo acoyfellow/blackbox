@@ -70,7 +70,7 @@
     "verify": "pass: 12 tests, copy-check 15 files clean",
     "guardrail": {
       "critical": 0,
-      "output": "\ud83d\udd0d 2 config(s) checked. 1 with findings:\n\n\ud83d\udfe1 blackbox\n   wrangler.jsonc\n  \ud83d\udfe1 Worker is attached to custom route blackbox.coey.dev with sensitive bindings\n  \ud83d\udfe1 service binding \"CORE\" exposed on custom route blackbox.coey.dev\n\n1 clean. 1 need attention."
+      "output": "\ud83d\udd0d 2 config(s) checked. 1 with findings:\n\n\ud83d\udfe1 blackbox\n   ./wrangler.jsonc\n  \ud83d\udfe1 Worker is attached to custom route blackbox.coey.dev with sensitive bindings\n  \ud83d\udfe1 service binding \"CORE\" exposed on custom route blackbox.coey.dev\n\n1 clean. 1 need attention."
     }
   }
 }
