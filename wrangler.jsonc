@@ -1,26 +1,23 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "blackbox",
-  "main": "src/worker/index.ts",
+  "main": "src/front/index.ts",
   "compatibility_date": "2026-04-17",
   "account_id": "bfcb6ac5b3ceaf42a09607f6f7925823",
   "workers_dev": false,
   "preview_urls": false,
-  "rules": [{ "type": "Text", "globs": ["**/*.jsonl"], "fallthrough": true }],
+  "routes": [{ "pattern": "blackbox.coey.dev", "custom_domain": true }],
   "assets": {
     "directory": "dist",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*"]
   },
-  "ai": { "binding": "AI" },
-  "d1_databases": [
-    {
-      "binding": "DB",
-      "database_name": "blackbox",
-      "database_id": "89124f6e-1a97-4cba-a7a6-b2556b4a96ef"
-    }
+  "services": [{ "binding": "CORE", "service": "blackbox-core" }],
+  "ratelimits": [
+    { "name": "UPLOAD_LIMIT", "namespace_id": "4101", "simple": { "limit": 5, "period": 60 } },
+    { "name": "NARRATE_LIMIT", "namespace_id": "4102", "simple": { "limit": 5, "period": 60 } },
+    { "name": "READ_LIMIT", "namespace_id": "4103", "simple": { "limit": 60, "period": 60 } }
   ],
-  "r2_buckets": [{ "binding": "LOGS", "bucket_name": "blackbox-logs" }],
   "observability": { "enabled": true }
 }

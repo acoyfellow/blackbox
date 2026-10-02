@@ -1,0 +1,100 @@
+{
+  "receipt": "002-coey-dev",
+  "date": "2026-10-02",
+  "url": "https://blackbox.coey.dev",
+  "workers": {
+    "front": {
+      "name": "blackbox",
+      "routes": [
+        "blackbox.coey.dev (custom domain)"
+      ],
+      "bindings": [
+        "ASSETS",
+        "CORE service",
+        "UPLOAD_LIMIT",
+        "NARRATE_LIMIT",
+        "READ_LIMIT"
+      ]
+    },
+    "core": {
+      "name": "blackbox-core",
+      "routes": [],
+      "workers_dev": false,
+      "bindings": [
+        "AI",
+        "DB (new D1 89dae833-8180-4574-b4b1-cd3233eaa723)",
+        "LOGS (R2 blackbox-logs)"
+      ]
+    }
+  },
+  "checks": {
+    "a_guardrail": {
+      "critical": 0,
+      "output": "\n🟡 blackbox\n   wrangler.jsonc\n  🟡 Worker is attached to custom route blackbox.coey.dev with sensitive bindings\n  🟡 service binding \"CORE\" exposed on custom route blackbox.coey.dev\n\n1 clean. 1 need attention."
+    },
+    "b_verify": {
+      "result": "pass",
+      "output": " 0 fail\n 30 expect() calls\nRan 11 tests across 1 file. [34.00ms]"
+    },
+    "c_root": {
+      "command": "curl https://blackbox.coey.dev",
+      "status": 200
+    },
+    "d_e2e": {
+      "command": "curl https://blackbox.coey.dev/api/recordings/sample-wrong-key",
+      "status": 200,
+      "note": "fresh D1, ingest + Clef scoring ran through front -> CORE",
+      "failureIndex": 2,
+      "scores": [
+        {
+          "index": 0,
+          "probability": 0.0147
+        },
+        {
+          "index": 1,
+          "probability": 0.0199
+        },
+        {
+          "index": 2,
+          "probability": 0.5363
+        },
+        {
+          "index": 3,
+          "probability": 0.4333
+        },
+        {
+          "index": 4,
+          "probability": 0.0396
+        },
+        {
+          "index": 5,
+          "probability": 0.0321
+        },
+        {
+          "index": 6,
+          "probability": 0.0439
+        },
+        {
+          "index": 7,
+          "probability": 0.0679
+        },
+        {
+          "index": 8,
+          "probability": 0.0273
+        },
+        {
+          "index": 9,
+          "probability": 0.0257
+        },
+        {
+          "index": 10,
+          "probability": 0.0842
+        }
+      ]
+    },
+    "e_core_private": {
+      "command": "curl https://blackbox-core.coy.workers.dev",
+      "status": 404
+    }
+  }
+}

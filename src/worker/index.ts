@@ -107,7 +107,7 @@ async function handleNarrate(env: Env, id: string): Promise<Response> {
 async function route(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
   const parts = url.pathname.split('/').filter(Boolean);
-  if (parts[0] !== 'api') return env.ASSETS.fetch(request);
+  if (parts[0] !== 'api') return json({ error: 'not found' }, 404);
   await ensureSchema(env.DB);
   if (parts[1] === 'recordings' && parts.length === 2) {
     if (request.method === 'POST') return handleUpload(request, env);

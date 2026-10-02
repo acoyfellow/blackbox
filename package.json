@@ -10,7 +10,7 @@
     "test": "bun test",
     "verify": "bun run check && bun run lint && bun run test",
     "samples": "bun scripts/make-samples.ts",
-    "deploy": "vite build && wrangler deploy"
+    "deploy": "vite build && wrangler deploy -c core/wrangler.jsonc && wrangler deploy"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.15",

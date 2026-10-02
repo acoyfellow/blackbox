@@ -20,13 +20,8 @@ export interface R2Binding {
   get(key: string): Promise<R2Object | null>;
 }
 
-export interface AssetsBinding {
-  fetch(request: Request): Promise<Response>;
-}
-
 export interface Env {
   AI: AiBinding;
   DB: D1Binding;
   LOGS: R2Binding;
-  ASSETS: AssetsBinding;
 }

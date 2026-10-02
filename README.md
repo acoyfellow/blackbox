@@ -33,3 +33,12 @@ bun run verify
 bun run build && wrangler dev
 bun run deploy
 ```
+
+## Deployment
+
+Live at https://blackbox.coey.dev. Two Workers:
+
+- `blackbox` (front, `wrangler.jsonc`): static UI, per-IP rate limits, and one service binding `CORE`. It proxies `/api/*` to the core.
+- `blackbox-core` (`core/wrangler.jsonc`): AI, D1, R2. No routes, no workers.dev, no preview URLs.
+
+Deploy with `bun run deploy`. It deploys the core first, then the front. Proof is in `receipts/002-coey-dev.json`.

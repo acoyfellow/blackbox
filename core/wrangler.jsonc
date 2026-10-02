@@ -1,0 +1,20 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "blackbox-core",
+  "main": "../src/worker/index.ts",
+  "compatibility_date": "2026-04-17",
+  "account_id": "bfcb6ac5b3ceaf42a09607f6f7925823",
+  "workers_dev": false,
+  "preview_urls": false,
+  "rules": [{ "type": "Text", "globs": ["**/*.jsonl"], "fallthrough": true }],
+  "ai": { "binding": "AI" },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "blackbox",
+      "database_id": "89dae833-8180-4574-b4b1-cd3233eaa723"
+    }
+  ],
+  "r2_buckets": [{ "binding": "LOGS", "bucket_name": "blackbox-logs" }],
+  "observability": { "enabled": true }
+}
