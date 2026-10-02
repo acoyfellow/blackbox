@@ -2,9 +2,11 @@
 
 BLACKBOX replays a Pi `--mode json` agent log as a step timeline and marks the step that the Clef model scores as the point where the run went wrong.
 
-![BLACKBOX upload page at 1440 px wide](docs/screenshot.png)
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/acoyfellow/blackbox)
 
 Live at https://blackbox.coey.dev.
+
+![BLACKBOX upload page at 1440 px wide](docs/screenshot.png)
 
 ## How It Works
 
@@ -20,9 +22,11 @@ Live at https://blackbox.coey.dev.
 - `receipts/001-first-deploy.json`: first deploy and the Clef scores for both samples.
 - `receipts/002-coey-dev.json`: split into front and core Workers on `blackbox.coey.dev`.
 - `receipts/003-marketing-pass.json`: live checks after this pass, including one upload, one read, and one narration.
+- `receipts/004-deploy-button.json`: the root config deployed as `blackbox-buttontest` with fresh D1 and R2, one real upload, then teardown.
+- `receipts/lighthouse-mobile.json`: Lighthouse mobile run against the live site.
 - `findings.md`: what Clef marked on the two sample runs. On `sample-wrong-key` it marked step 2 (p=0.54), the decision to skip the docs, and not the two error steps that came after it.
 
-## Limits
+## Limits and Costs
 
 - Upload size: 5 MB per file.
 - Rate limits per IP: 20 uploads per hour (D1 count), 5 uploads per minute, 5 narrations per minute, and 60 reads per minute (Workers rate limit bindings).
@@ -32,22 +36,27 @@ Live at https://blackbox.coey.dev.
 - Clef can mark the wrong step, and a score under 0.5 marks no step. The narrator can state wrong step numbers or causes.
 - Cost: each upload runs Clef once per 64 steps, and each narration runs Llama 3.3 70B once on Workers AI. The site owner pays for both.
 
-## Run It Yourself
+## Self-host
+
+Click the Deploy button. It reads the root `wrangler.jsonc`, a single Worker (`src/standalone/index.ts`) that serves the UI and the API. It creates a D1 database and an R2 bucket in your account and binds Workers AI and three rate limits. Tables are created on the first request, so there are no migrations to run.
+
+BLACKBOX needs no secrets. `vars.example` says so. If you add a secret later, set it with `bunx wrangler secret put NAME`.
+
+The root config sets `workers_dev: true` because the button deploys into your own account and needs a URL. `.guardrailignore` lists `wrangler.jsonc` for that reason only: guardrail flags any public workers.dev Worker that has AI, D1, or R2 bindings. Anyone can upload, so the rate limits and your Workers AI quota are the only protection.
+
+To deploy from a clone instead: `bun install && bun run deploy`.
+
+Production on `blackbox.coey.dev` uses two Workers: `wrangler.prod.jsonc` (front: rate limits and assets) and `core/wrangler.prod.jsonc` (core: AI, D1, R2). `bun run deploy:prod` deploys core first, then front.
+
+## Develop Locally
 
 ```
+git submodule update --init
 bun install
 bun run verify
 bun run build
 bunx wrangler dev
 ```
-
-Deploy to your own account after you change `account_id`, the D1 `database_id`, and the route:
-
-```
-bun run deploy
-```
-
-`bun run deploy` builds the UI, deploys `blackbox-core` first, then deploys `blackbox`.
 
 API:
 
@@ -57,7 +66,7 @@ API:
 
 `samples/` contains two real Pi runs made by `bun run samples`, with host names, paths, and provider fields redacted.
 
-`bun run verify` runs type checks, Biome, the tests, and `scripts/copy-check.ts`, which fails on banned copy phrases and the U+2192 arrow.
+`bun run verify` runs type checks, Biome, oxlint with the anti-slop rules (`tools/anti-slop` submodule), `scripts/copy-check.ts` (fails on banned copy phrases and the U+2192 arrow), and the tests.
 
 ## Stack
 
@@ -65,3 +74,7 @@ API:
 - Cloudflare Workers (front and core), Workers AI, AI Gateway, D1, R2, Workers rate limit bindings
 - Zod for every parse boundary
 - Bun for tests and scripts
+
+## License
+
+MIT. See `LICENSE`.

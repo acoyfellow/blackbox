@@ -2,3 +2,11 @@ node_modules
 dist
 .wrangler
 .guardrail
+.cursor
+.pi
+.vscode
+.idea
+.DS_Store
+*.swp
+wrangler.buttontest.jsonc
+status.json

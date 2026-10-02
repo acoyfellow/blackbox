@@ -1,5 +1,5 @@
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
+  "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "blackbox",
   "main": "src/front/index.ts",
   "compatibility_date": "2026-04-17",

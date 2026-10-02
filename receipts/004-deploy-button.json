@@ -1,0 +1,35 @@
+{
+  "what": "Deploy to Workers button rehearsal: root wrangler.jsonc only, throwaway names, fresh resources, then teardown.",
+  "date": "2026-10-02",
+  "account": "bfcb6ac5b3ceaf42a09607f6f7925823",
+  "steps": [
+    {
+      "cmd": "sed rename name/database_name/bucket_name to blackbox-buttontest* > wrangler.buttontest.jsonc; bun run build; wrangler deploy -c wrangler.buttontest.jsonc --i-know-its-public",
+      "note": "--i-know-its-public skips the local guardrail hook. The hook guessed the wrong workers.dev subdomain and blocks every public workers.dev deploy. The button deploy is public on purpose.",
+      "output": [
+        "Creating new R2 Bucket \"blackbox-buttontest-logs\"...",
+        "All resources provisioned, continuing with deployment...",
+        "env.DB (blackbox-buttontest) D1 Database",
+        "env.LOGS (blackbox-buttontest-logs) R2 Bucket",
+        "env.AI AI",
+        "Deployed blackbox-buttontest triggers",
+        "https://blackbox-buttontest.coy.workers.dev"
+      ]
+    },
+    { "cmd": "D1 migrations", "output": "none: the core runs CREATE TABLE IF NOT EXISTS on each request (ensureSchema)" },
+    { "cmd": "curl https://blackbox-buttontest.coy.workers.dev/", "output": "200" },
+    {
+      "cmd": "curl -X POST 'https://blackbox-buttontest.coy.workers.dev/api/recordings?title=buttontest' --data-binary @samples/sample-wrong-key.jsonl",
+      "output": "201 {\"id\":\"5d84c54c-d0c\",\"failureIndex\":2,\"steps\":11,\"url\":\"/r/5d84c54c-d0c\"}"
+    },
+    { "cmd": "curl https://blackbox-buttontest.coy.workers.dev/api/recordings/5d84c54c-d0c", "output": "200" },
+    {
+      "cmd": "teardown: wrangler delete --name blackbox-buttontest --force; API DELETE of 2 R2 objects; DELETE r2/buckets/blackbox-buttontest-logs; DELETE d1/database/9c64025f-e461-4f23-83d4-cd915ca7e0e1",
+      "output": "worker deleted; R2 objects and bucket success:true; D1 success:true"
+    },
+    {
+      "cmd": "verify teardown",
+      "output": "GET workers/scripts/blackbox-buttontest: 10007 does not exist; GET r2 bucket: 10006 does not exist; d1 ?name=blackbox-buttontest: count 0; https://blackbox-buttontest.coy.workers.dev/ 404"
+    }
+  ]
+}
