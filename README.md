@@ -38,13 +38,11 @@ Live at https://blackbox.coey.dev.
 
 ## Self-host
 
-Click the Deploy button. It reads the root `wrangler.jsonc` (a copy of `wrangler-button.jsonc`), a single Worker (`src/standalone/index.ts`) that serves the UI and the API. It creates a D1 database and an R2 bucket in your account and binds Workers AI and three rate limits. Tables are created on the first request, so there are no migrations to run.
+Click the Deploy button, or run `cp wrangler-button.jsonc wrangler.jsonc && bun install && bun run deploy`. The button config is `wrangler-button.jsonc`: a single Worker (`src/standalone/index.ts`) that serves the UI and the API. It creates a D1 database and an R2 bucket in your account and binds Workers AI and three rate limits. Tables are created on the first request, so there are no migrations to run.
 
 BLACKBOX needs no secrets. `vars.example` says so. If you add a secret later, set it with `bunx wrangler secret put NAME`.
 
 The root config sets `workers_dev: true` because the button deploys into your own account and needs a URL. `.guardrailignore` lists `wrangler.jsonc` and `wrangler-button.jsonc` for that reason only: guardrail flags any public workers.dev Worker that has AI, D1, or R2 bindings. Anyone can upload, so the rate limits and your Workers AI quota are the only protection.
-
-To deploy from a clone instead: `cp wrangler-button.jsonc wrangler.jsonc && bun install && bun run deploy`.
 
 Production on `blackbox.coey.dev` uses two Workers: `wrangler.prod.jsonc` (front: rate limits and assets) and `core/wrangler.prod.jsonc` (core: AI, D1, R2). `bun run deploy:prod` deploys core first, then front.
 
