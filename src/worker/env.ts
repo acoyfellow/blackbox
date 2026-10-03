@@ -22,6 +22,7 @@ export interface R2Object {
 export interface R2Binding {
   put(key: string, value: string): Promise<R2Object | null>;
   get(key: string): Promise<R2Object | null>;
+  delete(keys: string[]): Promise<void>;
 }
 
 export interface Env {

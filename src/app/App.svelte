@@ -1,7 +1,15 @@
 <script lang="ts">
 import type { RecordingView } from '../shared/recording';
 import { MAX_UPLOAD_BYTES } from '../shared/recording';
-import { fetchList, fetchRecording, friendlyError, type RecordingList, uploadLog } from './api';
+import {
+  deleteUpload,
+  fetchList,
+  fetchRecording,
+  friendlyError,
+  type RecordingList,
+  type UploadReceipt,
+  uploadLog,
+} from './api';
 import Replay from './Replay.svelte';
 
 let path = $state(window.location.pathname);
@@ -15,6 +23,8 @@ let loading = $state('');
 let problem = $state('');
 
 let listFailed = $state(false);
+
+let uploaded = $state<UploadReceipt | null>(null);
 
 const recordingId = $derived(path.startsWith('/r/') ? path.slice(3) : null);
 
@@ -43,7 +53,7 @@ $effect(() => {
       })
       .catch(() => {
         listFailed = true;
-        list = { recordings: [], samples: [] };
+        list = { samples: [] };
       });
   }
 });
@@ -51,6 +61,16 @@ $effect(() => {
 function go(next: string) {
   history.pushState(null, '', next);
   path = next;
+}
+
+async function onDelete(receipt: UploadReceipt) {
+  try {
+    await deleteUpload(receipt);
+    uploaded = null;
+    go('/');
+  } catch (error) {
+    problem = friendlyError(error instanceof Error ? error : null);
+  }
 }
 
 async function onFile(event: Event) {
@@ -72,9 +92,10 @@ async function onFile(event: Event) {
   loading = 'Uploading and scoring each step with Clef…';
 
   try {
-    const id = await uploadLog(file);
+    const receipt = await uploadLog(file);
     loading = '';
-    go(`/r/${id}`);
+    uploaded = receipt;
+    go(receipt.url);
   } catch (error) {
     loading = '';
     problem = friendlyError(error instanceof Error ? error : null);
@@ -108,6 +129,12 @@ async function onFile(event: Event) {
   {/if}
 
   {#if view}
+    {#if uploaded && uploaded.id === view.id}
+      <aside class="flex flex-wrap items-center gap-3 rounded-xl border border-amber-500/40 bg-zinc-950/80 p-4 font-mono text-xs text-zinc-300">
+        <span>Only people you give this page's URL to can open this recording. It is not listed anywhere. The delete button shows only in the tab you uploaded from, until you reload or close it.</span>
+        <button class="rounded border border-red-400/60 px-3 py-1 text-red-200 hover:bg-red-500/10" onclick={() => uploaded && onDelete(uploaded)}>Delete this recording</button>
+      </aside>
+    {/if}
     <Replay {view} />
   {:else if !recordingId}
     <header class="flex flex-col gap-3">
@@ -125,8 +152,9 @@ async function onFile(event: Event) {
           <input type="file" accept=".jsonl,.json,.log,.txt,application/json,text/plain" class="sr-only" aria-label="Upload a Pi --mode json log file" disabled={!!loading} onchange={onFile} />
         </label>
         <ul class="flex flex-col gap-2 rounded-xl border border-zinc-800 bg-zinc-950/80 p-4 text-xs leading-relaxed text-zinc-400">
-          <li><span class="text-zinc-200">Stored:</span> the raw file in R2 and the parsed steps and scores in D1, on Cloudflare. There is no expiry. Recordings stay until the site owner deletes them.</li>
-          <li><span class="text-zinc-200">Who can see it:</span> anyone with the share URL. New uploads also show in the public "Recent" list on this page. Do not upload secrets.</li>
+          <li><span class="text-zinc-200">Stored:</span> the raw file in R2 and the parsed steps and scores in D1, on Cloudflare. There is no expiry. A recording stays until you delete it with its delete token or the site owner deletes it.</li>
+          <li><span class="text-zinc-200">Who can see it:</span> anyone you give the share URL to, and the site owner. Uploads are not listed on this page or in the API. The URL holds a random 128-bit id, so it cannot be guessed. Do not upload secrets.</li>
+          <li><span class="text-zinc-200">Delete:</span> the upload reply carries a one-time delete token. The page shows a delete button right after upload. Only a hash of the token is stored.</li>
           <li><span class="text-zinc-200">Redaction:</span> host names and home folder paths are replaced before parsing. Other text is kept as you sent it.</li>
           <li><span class="text-zinc-200">Limits:</span> 5 MB per file. Per IP: 20 uploads per hour, 5 uploads per minute, 5 narrations per minute, 60 reads per minute.</li>
           <li><span class="text-zinc-200">Models:</span> each upload runs Cloudflare's Clef model on Workers AI, one call per 64 steps. Narration runs Meta's Llama 3.3 70B on Workers AI. Both can state things the log does not support.</li>
@@ -139,22 +167,9 @@ async function onFile(event: Event) {
             <span aria-hidden="true">▶</span> {sample}
           </button>
         {/each}
-        <h2 class="mt-4 font-mono text-[10px] tracking-[0.4em] text-zinc-400 uppercase">Recent</h2>
-        {#if list === null}
-          <p role="status" class="font-mono text-xs text-zinc-500">Loading recent recordings…</p>
-        {:else if listFailed}
-          <p class="font-mono text-xs text-red-300">The recent list did not load. Reload the page to try again.</p>
-        {:else if list.recordings.length === 0}
-          <p class="font-mono text-xs text-zinc-500">No uploads yet. Open a sample, or upload a log.</p>
+        {#if listFailed}
+          <p class="font-mono text-xs text-red-300">The sample list did not load. Reload the page to try again.</p>
         {/if}
-        {#each list?.recordings ?? [] as item (item.id)}
-          <button class="flex justify-between gap-3 rounded-lg border border-zinc-900 px-3 py-2 text-left font-mono text-xs text-zinc-400 hover:border-zinc-700" onclick={() => go(`/r/${item.id}`)}>
-            <span class="min-w-0 truncate">{item.title}</span>
-            <span class="shrink-0 {item.failure_index === null ? 'text-emerald-400' : 'text-red-400'}">
-              {item.failure_index === null ? 'no fault marked' : `fault at step ${item.failure_index}`}
-            </span>
-          </button>
-        {/each}
       </div>
     </section>
     <footer class="font-mono text-[10px] text-zinc-500">API: <code>POST /api/recordings</code> with a multipart <code>file</code> field. Made by <a class="underline hover:text-zinc-300" href="https://coey.dev">Jordan Coeyman</a>.</footer>

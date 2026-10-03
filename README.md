@@ -14,7 +14,7 @@ Live at https://blackbox.coey.dev.
 2. The front Worker `blackbox` checks the per-IP rate limit, then sends the request to the core Worker `blackbox-core` through a service binding.
 3. The core replaces host names and `/Users/<name>` paths, then parses the events into steps: tool calls, assistant turns, and errors.
 4. Cloudflare's Clef model `@cf/cloudflare/clef` on Workers AI, called through AI Gateway `default`, answers "Is this the step where the run went wrong?" for each step with a score from 0 to 1. The step with the highest score is marked red if its score is 0.5 or more.
-5. The core writes the redacted raw log to R2 (`blackbox-logs`) and the steps and scores to D1 (`blackbox`), then returns a share URL `/r/<id>`.
+5. The core writes the redacted raw log to R2 (`blackbox-logs`) and the steps and scores to D1 (`blackbox`), then returns a share URL `/r/<id>` and a one-time delete token. The id is 16 random bytes (128 bits) in base64url. Only a SHA-256 hash of the delete token is stored.
 6. On the replay page, NARRATE streams a short summary from Meta's Llama 3.3 70B (`@cf/meta/llama-3.3-70b-instruct-fp8-fast`) on Workers AI over SSE. The page renders it as plain text.
 
 ## Evidence
@@ -30,8 +30,8 @@ Live at https://blackbox.coey.dev.
 
 - Upload size: 5 MB per file. Uploads without a `content-length` header get 411.
 - Rate limits per IP: 20 uploads per hour (D1 count), 5 uploads per minute, 5 narrations per minute, and 60 reads per minute (Workers rate limit bindings).
-- Visibility: anyone with a share URL can read the recording. The home page lists the 30 newest uploads. There is no login and no delete button.
-- Retention: recordings have no expiry.
+- Visibility: uploads are private by default. Anyone you give the share URL to can read the recording, and so can the site owner. `GET /api/recordings` returns only the bundled samples, never uploads. There is no login. Recordings uploaded before the 128-bit ids keep their old short ids and still open by URL.
+- Retention: recordings have no expiry. The uploader can delete one with its delete token.
 - Redaction covers host names and home folder paths only. Do not upload logs that contain secrets.
 - Clef can mark the wrong step, and a score under 0.5 marks no step. The narrator can state wrong step numbers or causes.
 - Cost: each upload runs Clef once per 64 steps, and each narration runs Llama 3.3 70B once on Workers AI. The site owner pays for both.
@@ -42,7 +42,7 @@ Live at https://blackbox.coey.dev.
 - Errors the core returns: 400 (no Pi events found), 404, 411 (no content-length), 413 (over 5 MB), 422 (no `file` field), 429 (rate limit), 500, 502 (narrator did not stream).
 - Clef reply drift: a 500 on upload with `clef reply did not match schema` in the tail means the Clef output shape changed. Update `parseClefReply` in `src/worker/clef.ts`.
 - Rate limit too tight or abused: edit `ratelimits` in `wrangler.prod.jsonc` and `UPLOADS_PER_IP_PER_HOUR` in `src/shared/recording.ts`, then `bun run deploy:prod`.
-- Remove a recording: delete `raw/<id>.log` and `parsed/<id>.json` in R2 bucket `blackbox-logs`, then `DELETE FROM recordings WHERE id = '<id>'` in D1 `blackbox`.
+- Remove a recording without its token: delete `raw/<id>.log` and `parsed/<id>.json` in R2 bucket `blackbox-logs`, then `DELETE FROM recordings WHERE id = '<id>'` in D1 `blackbox`.
 - Alerts: none are configured. Nothing pages anyone when errors rise. Check the Workers dashboard or `wrangler tail`.
 
 ## Self-host
@@ -67,7 +67,9 @@ bunx wrangler dev
 
 API:
 
-- `POST /api/recordings`: send a multipart `file` field or a raw body. Returns `{ id, url, failureIndex, steps }`.
+- `POST /api/recordings`: send a multipart `file` field or a raw body. Returns `{ id, url, deleteToken, failureIndex, steps }`.
+- `GET /api/recordings`: returns `{ samples }`, the bundled sample ids. Uploads are never listed.
+- `DELETE /api/recordings/:id?token=<deleteToken>`: removes the D1 row and both R2 objects. A wrong token or unknown id returns 404.
 - `GET /api/recordings/:id`: returns the recording view.
 - `GET /api/recordings/:id/narrate`: streams the narration as SSE.
 

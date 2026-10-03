@@ -1,23 +1,13 @@
 import { z } from 'zod';
 import { type RecordingView, recordingViewSchema } from '../shared/recording';
 
-const listSchema = z.object({
-  recordings: z.array(
-    z.object({
-      id: z.string(),
-      title: z.string(),
-      model: z.string(),
-      steps: z.number(),
-      created_at: z.string(),
-      failure_index: z.number().nullable(),
-    }),
-  ),
-  samples: z.array(z.string()),
-});
+const listSchema = z.object({ samples: z.array(z.string()) });
 
 export type RecordingList = z.infer<typeof listSchema>;
 
-const uploadSchema = z.object({ id: z.string(), url: z.string() });
+const uploadSchema = z.object({ id: z.string(), url: z.string(), deleteToken: z.string() });
+
+export type UploadReceipt = z.infer<typeof uploadSchema>;
 
 const errorSchema = z.object({ error: z.string() });
 
@@ -95,17 +85,22 @@ export async function fetchRecording(id: string): Promise<RecordingView> {
   return parsed(await fetch(`/api/recordings/${id}`), recordingViewSchema);
 }
 
-export async function uploadLog(file: File): Promise<string> {
+export async function deleteUpload(receipt: UploadReceipt): Promise<void> {
+  const token = encodeURIComponent(receipt.deleteToken);
+
+  const response = await fetch(`/api/recordings/${receipt.id}?token=${token}`, {
+    method: 'DELETE',
+  });
+
+  if (!response.ok) throw new ApiError(response.status, 'delete failed');
+}
+
+export async function uploadLog(file: File): Promise<UploadReceipt> {
   const form = new FormData();
   form.set('file', file);
   form.set('title', file.name);
 
-  const result = await parsed(
-    await fetch('/api/recordings', { method: 'POST', body: form }),
-    uploadSchema,
-  );
-
-  return result.id;
+  return parsed(await fetch('/api/recordings', { method: 'POST', body: form }), uploadSchema);
 }
 
 export interface SseBatch {

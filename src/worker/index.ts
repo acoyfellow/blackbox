@@ -11,10 +11,11 @@ import {
 import { GATEWAY, type JsonValue, NARRATOR_MODEL, narrationMessages, scoreSteps } from './clef';
 import type { Env } from './env';
 import {
+  deleteRecording,
   ensureSchema,
-  listRecordings,
   loadRecording,
   recordUpload,
+  saveDeleteHash,
   saveRecording,
   uploadsInLastHour,
 } from './store';
@@ -32,7 +33,21 @@ export const SAMPLES = new Map<string, Sample>([
   ],
 ]);
 
-const idSchema = z.string().regex(/^[a-z0-9-]{3,64}$/);
+const idSchema = z.string().regex(/^[A-Za-z0-9_-]{3,64}$/);
+
+const tokenSchema = z.string().regex(/^[A-Za-z0-9_-]{43}$/);
+
+function randomBase64Url(bytes: number): string {
+  const binary = String.fromCharCode(...crypto.getRandomValues(new Uint8Array(bytes)));
+
+  return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '');
+}
+
+export async function hashToken(token: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token));
+
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
 
 const titleSchema = z.string().trim().min(1).max(120).catch('Untitled recording');
 
@@ -109,12 +124,14 @@ async function handleUpload(request: Request, env: Env): Promise<Response> {
 
   if (!upload.ok) return json({ error: upload.error }, upload.status);
   await recordUpload(env.DB, ip, now);
-  const id = crypto.randomUUID().slice(0, 12);
+  const id = randomBase64Url(16);
   const result = await ingest(env, id, upload.text, upload.title);
 
   if (!result) return json({ error: 'no Pi events or terrarium log found' }, 400);
+  const deleteToken = randomBase64Url(32);
+  await saveDeleteHash(env.DB, id, await hashToken(deleteToken));
 
-  return json({ ...result, url: `/r/${id}` }, 201);
+  return json({ ...result, url: `/r/${id}`, deleteToken }, 201);
 }
 
 async function handleGet(env: Env, id: string): Promise<Response> {
@@ -128,6 +145,15 @@ async function handleGet(env: Env, id: string): Promise<Response> {
   const seeded = await loadRecording(env.DB, env.LOGS, id);
 
   return seeded ? json(seeded) : json({ error: 'sample failed to load' }, 500);
+}
+
+async function handleDelete(request: Request, env: Env, id: string): Promise<Response> {
+  const token = tokenSchema.safeParse(new URL(request.url).searchParams.get('token'));
+
+  if (!token.success) return json({ error: 'not found' }, 404);
+  const deleted = await deleteRecording(env.DB, env.LOGS, id, await hashToken(token.data));
+
+  return deleted ? json({ deleted: id }) : json({ error: 'not found' }, 404);
 }
 
 async function handleNarrate(env: Env, id: string): Promise<Response> {
@@ -159,15 +185,17 @@ async function route(request: Request, env: Env): Promise<Response> {
 
   if (parts[1] === 'recordings' && parts.length === 2) {
     if (request.method === 'POST') return handleUpload(request, env);
-    const listed = await listRecordings(env.DB);
 
-    return json({ recordings: listed, samples: [...SAMPLES.keys()] });
+    return json({ samples: [...SAMPLES.keys()] });
   }
 
   const id = idSchema.safeParse(parts[2]);
 
   if (parts[1] === 'recordings' && id.success) {
     if (parts[3] === 'narrate') return handleNarrate(env, id.data);
+
+    if (parts.length === 3 && request.method === 'DELETE')
+      return handleDelete(request, env, id.data);
 
     if (parts.length === 3) return handleGet(env, id.data);
   }

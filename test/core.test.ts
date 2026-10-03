@@ -41,6 +41,9 @@ function fakeEnv(stored: Map<string, string>, failAi = false): Env {
 
         return value === undefined ? null : object(value);
       },
+      delete: async (keys: string[]) => {
+        for (const key of keys) stored.delete(key);
+      },
     },
   };
 }

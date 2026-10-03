@@ -12,6 +12,7 @@ export const SCHEMA = [
   'CREATE TABLE IF NOT EXISTS recordings (id TEXT PRIMARY KEY, title TEXT NOT NULL, format TEXT NOT NULL, model TEXT NOT NULL, steps INTEGER NOT NULL, created_at TEXT NOT NULL, failure_index INTEGER, scores TEXT NOT NULL)',
   'CREATE TABLE IF NOT EXISTS uploads (ip TEXT NOT NULL, at INTEGER NOT NULL)',
   'CREATE INDEX IF NOT EXISTS uploads_ip_at ON uploads (ip, at)',
+  'CREATE TABLE IF NOT EXISTS delete_tokens (id TEXT PRIMARY KEY, hash TEXT NOT NULL)',
 ];
 
 const rowSchema = z.object({
@@ -95,21 +96,28 @@ export async function loadRecording(
   };
 }
 
-const listItemSchema = z.object({
-  id: z.string(),
-  title: z.string(),
-  model: z.string(),
-  steps: z.number(),
-  created_at: z.string(),
-  failure_index: z.number().nullable(),
-});
+export async function saveDeleteHash(db: D1Binding, id: string, hash: string): Promise<void> {
+  await db
+    .prepare('INSERT OR REPLACE INTO delete_tokens (id, hash) VALUES (?, ?)')
+    .bind(id, hash)
+    .run();
+}
 
-export async function listRecordings(db: D1Binding) {
-  const { results } = await db
-    .prepare(
-      'SELECT id, title, model, steps, created_at, failure_index FROM recordings ORDER BY created_at DESC LIMIT 30',
-    )
-    .all();
+export async function deleteRecording(
+  db: D1Binding,
+  logs: R2Binding,
+  id: string,
+  hash: string,
+): Promise<boolean> {
+  const row = await db
+    .prepare('SELECT id FROM delete_tokens WHERE id = ? AND hash = ?')
+    .bind(id, hash)
+    .first();
 
-  return z.array(listItemSchema).parse(results);
+  if (!row) return false;
+  await logs.delete([`raw/${id}.log`, `parsed/${id}.json`]);
+  await db.prepare('DELETE FROM recordings WHERE id = ?').bind(id).run();
+  await db.prepare('DELETE FROM delete_tokens WHERE id = ?').bind(id).run();
+
+  return true;
 }
