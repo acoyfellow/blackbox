@@ -1,0 +1,47 @@
+{
+  "receipt": "006-private-recordings",
+  "date": "2026-10-03",
+  "codeCommit": "08cb54724eff36f5d0b8981737511a21cb38be3b",
+  "ci": "GitHub Actions run 37119820392 on 08cb547: success",
+  "deploy": {
+    "command": "bun run deploy:prod with CLOUDFLARE_ACCOUNT_ID set and the logged-in wrangler session",
+    "blackboxCoreVersion": "879e8850-1e7a-43cc-9994-ef3bff9a94f8",
+    "blackboxVersion": "ebbd3507-ded3-417d-a24d-8dffd0e73d32"
+  },
+  "changes": [
+    "GET /api/recordings returns only { samples }. listRecordings removed from src/worker/store.ts.",
+    "Upload id is 16 random bytes in base64url (22 chars). Old short ids still match idSchema ^[A-Za-z0-9_-]{3,64}$ and still load.",
+    "Upload reply includes deleteToken (32 random bytes, base64url). Only its SHA-256 hex is stored, in D1 table delete_tokens.",
+    "DELETE /api/recordings/:id?token= removes R2 raw/<id>.log and parsed/<id>.json, the recordings row, and the delete_tokens row. Wrong token or unknown id gives 404."
+  ],
+  "tests": [
+    "test/private.test.ts 'list never returns an uploaded id'",
+    "test/private.test.ts 'a random id returns 404'",
+    "test/private.test.ts 'delete with token removes row and both objects'",
+    "test/private.test.ts 'token is not stored in plain text'",
+    "test/private.test.ts 'upload id is 128-bit base64url'"
+  ],
+  "liveProof": {
+    "syntheticInput": "3-line Pi JSON made for this test: one session event and one bash tool call that echoes synthetic-006. No real log was uploaded.",
+    "upload": "POST https://blackbox.coey.dev/api/recordings returned id 9R-A9RFtWbiUC0Ac8u7JMA, steps 1",
+    "list": "GET /api/recordings returned {\"samples\":[\"sample-wrong-key\",\"sample-recovered-landing\"]}; the id appears 0 times",
+    "shareUrl": "GET /r/9R-A9RFtWbiUC0Ac8u7JMA 200; GET /api/recordings/9R-A9RFtWbiUC0Ac8u7JMA 200",
+    "randomId": "GET /api/recordings/Zx9Qp2Lm7Rt4Vb8Nc1Hd5w 404",
+    "r2Before": ["raw/9R-A9RFtWbiUC0Ac8u7JMA.log present", "parsed/9R-A9RFtWbiUC0Ac8u7JMA.json present"],
+    "delete": "DELETE /api/recordings/9R-A9RFtWbiUC0Ac8u7JMA?token=<redacted> returned 200 {\"deleted\":\"9R-A9RFtWbiUC0Ac8u7JMA\"}",
+    "after": "GET /api/recordings/9R-A9RFtWbiUC0Ac8u7JMA 404",
+    "r2After": ["raw/9R-A9RFtWbiUC0Ac8u7JMA.log absent", "parsed/9R-A9RFtWbiUC0Ac8u7JMA.json absent"],
+    "d1After": "recordings rows 0, delete_tokens rows 0 for that id",
+    "deletedIds": ["9R-A9RFtWbiUC0Ac8u7JMA"],
+    "note": "/r/<id> is served by the SPA asset fallback and returns 200 for any path; the API GET is the real reachability check."
+  },
+  "truthAudit": [
+    {"sentence": "README: GET /api/recordings returns only the bundled samples, never uploads.", "proof": "src/worker/index.ts route: list branch returns json({ samples: [...SAMPLES.keys()] })"},
+    {"sentence": "README and page: the id is 128 random bits in base64url.", "proof": "src/worker/index.ts handleUpload: randomBase64Url(16)"},
+    {"sentence": "README and page: only a hash of the delete token is stored.", "proof": "src/worker/index.ts hashToken (SHA-256) and saveDeleteHash in src/worker/store.ts"},
+    {"sentence": "Page: anyone you give the share URL to, and the site owner, can see it.", "proof": "No auth in route; owner has D1 and R2 access."},
+    {"sentence": "Page: the delete button shows only in the tab you uploaded from, until you reload or close it.", "proof": "src/app/App.svelte: uploaded is in-memory $state, set only in onFile"},
+    {"sentence": "README: old short ids still open by URL.", "proof": "src/worker/index.ts idSchema allows 3 to 64 chars of [A-Za-z0-9_-]"},
+    {"sentence": "index.html meta: gives you a share URL.", "proof": "handleUpload returns url /r/<id>; unchanged and still true"}
+  ]
+}
