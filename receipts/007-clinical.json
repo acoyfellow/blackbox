@@ -1,0 +1,14 @@
+{
+  "receipt": "007-clinical",
+  "date": "2026-10-03",
+  "url": "https://blackbox.coey.dev",
+  "change": "Clinical visual language: paper surface, one grey scale, single fault accent, 1px rules, graph-paper grid, step table with index, T+s, tool, status, Clef p and bar. Gauges, glows, pulses, gradients, rounded pills, emoji and cockpit backdrop removed. Dark mode via prefers-color-scheme only.",
+  "og": { "path": "public/og.jpg", "size": "1200x630", "source": "headless Chrome render of /r/sample-wrong-key" },
+  "lighthouse": { "formFactor": "mobile", "performance": 99, "accessibility": 100, "bestPractices": 100, "seo": 100 },
+  "screenshots": ["docs/clinical-desktop.png", "docs/clinical-mobile.png", "docs/clinical-run.png"],
+  "deploy": {
+    "core": { "name": "blackbox-core", "version": "2553b542-e57e-41bc-b570-db84df9ad970" },
+    "front": { "name": "blackbox", "version": "9010b04e-f8ec-4645-af24-b81353a44703" }
+  },
+  "verify": "bun run verify passed; CI success"
+}
