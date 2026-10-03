@@ -1,0 +1,107 @@
+{
+  "receipt": "005-adversarial-review",
+  "date": "2026-10-03",
+  "fixCommit": "77f8881",
+  "ci": "GitHub Actions verify on 77f888175c17946e52f48d3274ffb815e019f46c: success",
+  "deploy": {
+    "status": "blocked",
+    "reason": "bun run deploy:prod failed with Invalid access token [code: 9109]. The wrangler OAuth token in default.json expired and wrangler cannot refresh it non-interactively. Run wrangler login, then bun run deploy:prod.",
+    "liveRecheck": "Not done for the fixes. The live site still runs the code before 77f8881."
+  },
+  "profiles": [
+    {
+      "profile": "Dane Knecht",
+      "question": "Have you actually shipped this and watched it run, or are we still in the deck?",
+      "evidence": [
+        "Made a real log: pi --mode json -p 'Run the shell command: ls /nonexistent-dir . Then reply done.' gave 40 lines, 250948 bytes.",
+        "curl -F file=@real-pi.jsonl https://blackbox.coey.dev/api/recordings returned 201 {id:4844cec7-28f, failureIndex:null, steps:5}.",
+        "GET /api/recordings/4844cec7-28f returned format pi-json with 5 steps. GET .../narrate streamed SSE and ended with data: [DONE] (completion_tokens 128).",
+        "cmux browser opened /r/c4eb0199-d3d. The snapshot showed FAULT AT WAYPOINT 2, waypoints 0 to 10, scrubber, Start replay, NARRATE."
+      ],
+      "findings": [
+        {"severity": "low", "finding": "Unhappy path not in README: no list of error statuses or causes.", "verdict": "fixed", "commit": "77f8881", "where": "README.md Runbook section"}
+      ]
+    },
+    {
+      "profile": "Kenton Varda",
+      "question": "What exactly crosses the front/core binding, what can a malicious upload make core do, and how long do uploads live?",
+      "evidence": [
+        "src/front/index.ts serveLimited: non-/api paths go to ASSETS; /api requests pass the full Request (method, headers incl. cf-connecting-ip, body) to CORE.fetch after one rate-limit check.",
+        "src/worker/index.ts route: core accepts only /api/recordings (GET list, POST upload), /api/recordings/:id, /api/recordings/:id/narrate. ids must match ^[a-z0-9-]{3,64}$.",
+        "Core work per upload: one D1 count, one D1 insert, ceil(steps/64) Clef calls, two R2 puts, one D1 upsert. Retention: no expiry (README Limits)."
+      ],
+      "findings": [
+        {"severity": "high", "finding": "store.ts saveRecording wrote the unredacted raw log to R2 raw/<id>.log, while README and page copy say host names and home paths are replaced.", "verdict": "fixed", "commit": "77f8881", "test": "test/core.test.ts 'raw log is stored redacted'"},
+        {"severity": "medium", "finding": "readUpload treated a missing content-length as 0, so a chunked body was read fully into memory before the 5 MB check.", "verdict": "fixed", "commit": "77f8881", "note": "Core now returns 411 without content-length.", "test": "test/core.test.ts 'upload without content-length is refused'"},
+        {"severity": "info", "finding": "Core is reachable only by service binding (workers_dev false, no routes in core/wrangler.prod.jsonc), so it trusts cf-connecting-ip from front.", "verdict": "rejected", "reason": "No public route to core. Cloudflare sets cf-connecting-ip at the edge."}
+      ]
+    },
+    {
+      "profile": "Ana Foppa",
+      "question": "What is the blast radius of hostile input?",
+      "evidence": [
+        "6 MB raw POST to live: 413 {\"error\":\"upload exceeds 5 MB\"}.",
+        "POST 'not json' to live: 400 {\"error\":\"no Pi events or terrarium log found\"}.",
+        "GET /api/recordings/..%2f..%2fetc on live: 404. Unit test added for the same id.",
+        "Spoofed cf-connecting-ip header to live: Cloudflare returned error code 1000 (403). The limiter key comes from the edge value.",
+        "XSS: uploaded with title '<img src=x onerror=alert(1)>' (201, id c4eb0199-d3d). In the browser, document.querySelectorAll('img[src=x]').length was 0 and the tag showed as text. grep @html in src/app found nothing. Narration renders as text in Replay.svelte."
+      ],
+      "findings": [
+        {"severity": "medium", "finding": "500 responses returned error.message to the client, which can include Clef reply fragments and upstream detail.", "verdict": "fixed", "commit": "77f8881", "test": "test/core.test.ts 'internal errors do not leak messages'"},
+        {"severity": "low", "finding": "Narration cost abuse: NARRATE_LIMIT is 5 per minute per IP with max_tokens 400 and no cache, so many IPs can each spend tokens.", "verdict": "rejected", "reason": "Documented in README Limits and Costs. Caching narration needs a new store and is out of scope for this pass."}
+      ]
+    },
+    {
+      "profile": "Michelle Wong",
+      "question": "Does the full journey work on mobile and desktop, does the share URL work in a fresh session, and is the error copy useful?",
+      "evidence": [
+        "curl (no cookies) GET https://blackbox.coey.dev/r/4844cec7-28f: 200 and the API read returns the recording, so a fresh session can open the share URL.",
+        "receipts/lighthouse-mobile.json: mobile Lighthouse run against the live site.",
+        "src/app/api.ts errorCopy maps 400, 404, 413, 429 to plain instructions."
+      ],
+      "findings": [
+        {"severity": "low", "finding": "New 411 and 422 statuses had no specific copy.", "verdict": "fixed", "commit": "77f8881", "where": "src/app/api.ts errorCopy"}
+      ]
+    },
+    {
+      "profile": "Kevin Kipp",
+      "question": "Are loading, empty, and error states, focus, contrast, motion, and layout shift handled?",
+      "evidence": [
+        "App.svelte: role=status loading text, red problem box with a button home, file input disabled while loading, label focus-within ring.",
+        "Replay.svelte: aria-live=polite narration region with min-h-24 so streaming text does not shift layout; text for empty narration.",
+        "receipts/lighthouse-mobile.json: accessibility 96."
+      ],
+      "findings": [
+        {"severity": "info", "finding": "No defect found in this pass beyond the Lighthouse a11y score of 96.", "verdict": "rejected", "reason": "No reproducible failure found."}
+      ]
+    },
+    {
+      "profile": "Tom McAuliffe",
+      "question": "How do we fix this at 3am?",
+      "evidence": [
+        "Both wrangler.prod.jsonc files set observability.enabled true.",
+        "Before 77f8881 the core caught errors without logging them."
+      ],
+      "findings": [
+        {"severity": "medium", "finding": "Core swallowed exceptions with no console output.", "verdict": "fixed", "commit": "77f8881", "where": "src/worker/index.ts logs 'blackbox-core request failed' with method, path, error"},
+        {"severity": "medium", "finding": "No runbook and no statement about alerts.", "verdict": "fixed", "commit": "77f8881", "where": "README.md Runbook: tail, status codes, Clef drift, limit tuning, delete a recording, 'Alerts: none are configured'"}
+      ]
+    },
+    {
+      "profile": "Tom Bremer",
+      "question": "Can we do this with less code?",
+      "evidence": ["grep for each export across src and test."],
+      "findings": [
+        {"severity": "low", "finding": "totals() in src/shared/recording.ts had no callers.", "verdict": "fixed", "commit": "77f8881", "note": "deleted"},
+        {"severity": "low", "finding": "listItemSchema in src/worker/store.ts was exported with no importer and duplicated by the list schema in src/app/api.ts.", "verdict": "fixed", "commit": "77f8881", "note": "made module-private; client and worker schemas kept separate because the client bundle does not import worker code"}
+      ]
+    }
+  ],
+  "truthAudit": {
+    "findings": [
+      {"severity": "medium", "finding": "README step 5 said the raw log is written to R2 while redaction claims implied it is redacted; code stored it unredacted.", "verdict": "fixed", "commit": "77f8881", "proof": "src/worker/index.ts ingest passes the redacted text to saveRecording"},
+      {"severity": "low", "finding": "Third-party and Cloudflare models were not named by vendor in README and page copy.", "verdict": "fixed", "commit": "77f8881", "where": "README How It Works steps 4 and 6; App.svelte header and Models item; Replay.svelte narration wait text now say Cloudflare's Clef and Meta's Llama 3.3 70B on Workers AI"},
+      {"severity": "info", "finding": "Meta, og, twitter, JSON-LD, manifest, and GitHub description claim upload, step replay, Clef scoring, and a share URL.", "verdict": "rejected", "reason": "All proven: src/worker/index.ts handleUpload returns url /r/<id>; src/worker/clef.ts scoreSteps; src/app/Replay.svelte timeline."}
+    ]
+  }
+}
