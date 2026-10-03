@@ -113,7 +113,7 @@ async function onFile(event: Event) {
     <header class="flex flex-col gap-3">
       <h1 class="text-2xl font-semibold text-zinc-100 md:text-3xl">Replay a Pi agent run and see which step went wrong</h1>
       <p class="max-w-3xl text-sm leading-relaxed text-zinc-400">
-        Drop the JSON lines file that <code class="text-amber-200">pi --mode json</code> writes. BLACKBOX shows each step on a timeline. The Clef model answers "Is this the step where the run went wrong?" for each step with a score from 0 to 1. The step with the highest score is marked red when its score is 0.5 or more. Clef can mark the wrong step. Use the mark as a place to start reading.
+        Drop the JSON lines file that <code class="text-amber-200">pi --mode json</code> writes. BLACKBOX shows each step on a timeline. Cloudflare's Clef model answers "Is this the step where the run went wrong?" for each step with a score from 0 to 1. The step with the highest score is marked red when its score is 0.5 or more. Clef can mark the wrong step. Use the mark as a place to start reading.
       </p>
     </header>
     <section class="grid gap-6 md:grid-cols-2">
@@ -129,7 +129,7 @@ async function onFile(event: Event) {
           <li><span class="text-zinc-200">Who can see it:</span> anyone with the share URL. New uploads also show in the public "Recent" list on this page. Do not upload secrets.</li>
           <li><span class="text-zinc-200">Redaction:</span> host names and home folder paths are replaced before parsing. Other text is kept as you sent it.</li>
           <li><span class="text-zinc-200">Limits:</span> 5 MB per file. Per IP: 20 uploads per hour, 5 uploads per minute, 5 narrations per minute, 60 reads per minute.</li>
-          <li><span class="text-zinc-200">Models:</span> each upload runs Clef on Workers AI, one call per 64 steps. Narration runs Llama 3.3 70B. Both can state things the log does not support.</li>
+          <li><span class="text-zinc-200">Models:</span> each upload runs Cloudflare's Clef model on Workers AI, one call per 64 steps. Narration runs Meta's Llama 3.3 70B on Workers AI. Both can state things the log does not support.</li>
         </ul>
       </div>
       <div class="flex flex-col gap-3">

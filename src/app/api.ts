@@ -47,7 +47,12 @@ const errorCopy = new Map<number, string>([
     'BLACKBOX found no Pi events or terrarium log lines in this file. Upload the output of pi --mode json.',
   ],
   [404, 'This recording does not exist. Check the share URL.'],
+  [
+    411,
+    'The upload had no size header. Upload the file from this page or send it with curl -F file=@run.jsonl.',
+  ],
   [413, 'This file is larger than 5 MB. Upload a smaller log.'],
+  [422, 'The upload had no file field. Send the log as a multipart field named file.'],
   [
     429,
     'You reached the rate limit. Wait one minute and try again. Uploads are limited to 20 per hour.',

@@ -174,7 +174,7 @@ function onKey(event: KeyboardEvent) {
           {narrating ? 'ON AIR…' : 'NARRATE'}
         </button>
       </div>
-      <p aria-live="polite" class="min-h-24 text-sm leading-relaxed whitespace-pre-wrap text-sky-100/90">{#if narration}{narration}{:else if narrating}Waiting for the first words from Llama 3.3 70B…{:else if !narrationProblem}Press NARRATE for a short summary of this run. The model can get step numbers or causes wrong. Check them against the timeline.{/if}{#if narrating}<span aria-hidden="true" class="animate-pulse">▍</span>{/if}</p>
+      <p aria-live="polite" class="min-h-24 text-sm leading-relaxed whitespace-pre-wrap text-sky-100/90">{#if narration}{narration}{:else if narrating}Waiting for the first words from Meta Llama 3.3 70B…{:else if !narrationProblem}Press NARRATE for a short summary of this run. The model can get step numbers or causes wrong. Check them against the timeline.{/if}{#if narrating}<span aria-hidden="true" class="animate-pulse">▍</span>{/if}</p>
       {#if narrationProblem}<p role="alert" class="mt-2 font-mono text-xs text-red-300">{narrationProblem}</p>{/if}
     </article>
   </div>

@@ -95,7 +95,7 @@ export async function loadRecording(
   };
 }
 
-export const listItemSchema = z.object({
+const listItemSchema = z.object({
   id: z.string(),
   title: z.string(),
   model: z.string(),

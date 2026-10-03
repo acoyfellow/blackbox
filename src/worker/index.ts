@@ -44,31 +44,38 @@ function json(body: JsonValue, status = 200): Response {
 }
 
 async function ingest(env: Env, id: string, raw: string, title: string) {
-  const recording = parseRecording(redact(raw), title);
+  const redacted = redact(raw);
+  const recording = parseRecording(redacted, title);
 
   if (!recording) return null;
   const scores = await scoreSteps(env.AI, recording.title, recording.steps);
   const failureIndex = failureIndexFrom(scores);
-  await saveRecording(env.DB, env.LOGS, id, raw, recording, scores, failureIndex);
+  await saveRecording(env.DB, env.LOGS, id, redacted, recording, scores, failureIndex);
 
   return { id, failureIndex, steps: recording.steps.length };
 }
 
-type Upload = { ok: true; text: string; title: string } | { ok: false; error: string };
+type Upload =
+  | { ok: true; text: string; title: string }
+  | { ok: false; status: number; error: string };
 
 async function readUpload(request: Request): Promise<Upload> {
-  const length = Number(request.headers.get('content-length') ?? '0');
+  const declared = request.headers.get('content-length');
 
-  if (length > MAX_UPLOAD_BYTES) return { ok: false, error: 'upload exceeds 5 MB' };
+  if (declared === null) return { ok: false, status: 411, error: 'content-length required' };
+
+  if (Number(declared) > MAX_UPLOAD_BYTES)
+    return { ok: false, status: 413, error: 'upload exceeds 5 MB' };
   const type = request.headers.get('content-type') ?? '';
 
   if (type.startsWith('multipart/form-data')) {
     const form = await request.formData();
     const file = form.get('file');
 
-    if (!(file instanceof File)) return { ok: false, error: 'missing file field' };
+    if (!(file instanceof File)) return { ok: false, status: 422, error: 'missing file field' };
 
-    if (file.size > MAX_UPLOAD_BYTES) return { ok: false, error: 'upload exceeds 5 MB' };
+    if (file.size > MAX_UPLOAD_BYTES)
+      return { ok: false, status: 413, error: 'upload exceeds 5 MB' };
 
     return {
       ok: true,
@@ -80,7 +87,7 @@ async function readUpload(request: Request): Promise<Upload> {
   const text = await request.text();
 
   if (new TextEncoder().encode(text).byteLength > MAX_UPLOAD_BYTES)
-    return { ok: false, error: 'upload exceeds 5 MB' };
+    return { ok: false, status: 413, error: 'upload exceeds 5 MB' };
   const url = new URL(request.url);
 
   return {
@@ -100,7 +107,7 @@ async function handleUpload(request: Request, env: Env): Promise<Response> {
 
   const upload = await readUpload(request);
 
-  if (!upload.ok) return json({ error: upload.error }, 413);
+  if (!upload.ok) return json({ error: upload.error }, upload.status);
   await recordUpload(env.DB, ip, now);
   const id = crypto.randomUUID().slice(0, 12);
   const result = await ingest(env, id, upload.text, upload.title);
@@ -173,9 +180,14 @@ export default {
     try {
       return await route(request, env);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'unknown error';
+      console.error(
+        'blackbox-core request failed',
+        request.method,
+        new URL(request.url).pathname,
+        error,
+      );
 
-      return json({ error: message }, 500);
+      return json({ error: 'internal error' }, 500);
     }
   },
 };

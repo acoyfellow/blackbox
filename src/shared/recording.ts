@@ -334,18 +334,6 @@ export function failureIndexFrom(scores: Score[]): number | null {
   return top && top.probability >= 0.5 ? top.index : null;
 }
 
-export function totals(steps: Step[]) {
-  return steps.reduce(
-    (sum, step) => ({
-      inputTokens: sum.inputTokens + step.inputTokens,
-      outputTokens: sum.outputTokens + step.outputTokens,
-      costUsd: sum.costUsd + step.costUsd,
-      errors: sum.errors + (step.isError ? 1 : 0),
-    }),
-    { inputTokens: 0, outputTokens: 0, costUsd: 0, errors: 0 },
-  );
-}
-
 const hostPattern = /\b[a-z0-9-]+(\.[a-z0-9-]+)*\.(internal|corp|lan|local)\b/gi;
 
 export function redact(text: string): string {

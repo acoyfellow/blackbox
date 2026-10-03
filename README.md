@@ -13,9 +13,9 @@ Live at https://blackbox.coey.dev.
 1. You upload a Pi `--mode json` log or a terrarium run log, up to 5 MB.
 2. The front Worker `blackbox` checks the per-IP rate limit, then sends the request to the core Worker `blackbox-core` through a service binding.
 3. The core replaces host names and `/Users/<name>` paths, then parses the events into steps: tool calls, assistant turns, and errors.
-4. `@cf/cloudflare/clef`, called through AI Gateway `default`, answers "Is this the step where the run went wrong?" for each step with a score from 0 to 1. The step with the highest score is marked red if its score is 0.5 or more.
-5. The core writes the raw log to R2 (`blackbox-logs`) and the steps and scores to D1 (`blackbox`), then returns a share URL `/r/<id>`.
-6. On the replay page, NARRATE streams a short summary from `@cf/meta/llama-3.3-70b-instruct-fp8-fast` over SSE. The page renders it as plain text.
+4. Cloudflare's Clef model `@cf/cloudflare/clef` on Workers AI, called through AI Gateway `default`, answers "Is this the step where the run went wrong?" for each step with a score from 0 to 1. The step with the highest score is marked red if its score is 0.5 or more.
+5. The core writes the redacted raw log to R2 (`blackbox-logs`) and the steps and scores to D1 (`blackbox`), then returns a share URL `/r/<id>`.
+6. On the replay page, NARRATE streams a short summary from Meta's Llama 3.3 70B (`@cf/meta/llama-3.3-70b-instruct-fp8-fast`) on Workers AI over SSE. The page renders it as plain text.
 
 ## Evidence
 
@@ -28,13 +28,22 @@ Live at https://blackbox.coey.dev.
 
 ## Limits and Costs
 
-- Upload size: 5 MB per file.
+- Upload size: 5 MB per file. Uploads without a `content-length` header get 411.
 - Rate limits per IP: 20 uploads per hour (D1 count), 5 uploads per minute, 5 narrations per minute, and 60 reads per minute (Workers rate limit bindings).
 - Visibility: anyone with a share URL can read the recording. The home page lists the 30 newest uploads. There is no login and no delete button.
 - Retention: recordings have no expiry.
 - Redaction covers host names and home folder paths only. Do not upload logs that contain secrets.
 - Clef can mark the wrong step, and a score under 0.5 marks no step. The narrator can state wrong step numbers or causes.
 - Cost: each upload runs Clef once per 64 steps, and each narration runs Llama 3.3 70B once on Workers AI. The site owner pays for both.
+
+## Runbook
+
+- Logs: both Workers set `observability.enabled`. Run `bunx wrangler tail blackbox-core` for core errors. Each failed request logs `blackbox-core request failed` with the method, path, and error. Clients get `{"error":"internal error"}` with status 500.
+- Errors the core returns: 400 (no Pi events found), 404, 411 (no content-length), 413 (over 5 MB), 422 (no `file` field), 429 (rate limit), 500, 502 (narrator did not stream).
+- Clef reply drift: a 500 on upload with `clef reply did not match schema` in the tail means the Clef output shape changed. Update `parseClefReply` in `src/worker/clef.ts`.
+- Rate limit too tight or abused: edit `ratelimits` in `wrangler.prod.jsonc` and `UPLOADS_PER_IP_PER_HOUR` in `src/shared/recording.ts`, then `bun run deploy:prod`.
+- Remove a recording: delete `raw/<id>.log` and `parsed/<id>.json` in R2 bucket `blackbox-logs`, then `DELETE FROM recordings WHERE id = '<id>'` in D1 `blackbox`.
+- Alerts: none are configured. Nothing pages anyone when errors rise. Check the Workers dashboard or `wrangler tail`.
 
 ## Self-host
 
