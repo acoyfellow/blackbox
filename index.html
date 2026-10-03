@@ -1,12 +1,13 @@
 <!doctype html>
-<html lang="en" class="bg-black">
+<html lang="en" class="bg-paper">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>BLACKBOX: replay a Pi agent run and find the fault</title>
     <meta name="description" content="Upload a Pi --mode json log. BLACKBOX replays each step, uses the Clef model to score which step went wrong, and gives you a share URL." />
     <link rel="canonical" href="https://blackbox.coey.dev/" />
-    <meta name="theme-color" content="#000000" />
+    <meta name="theme-color" content="#fbfbfa" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#111111" media="(prefers-color-scheme: dark)" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
@@ -20,7 +21,7 @@
     <meta property="og:image" content="https://blackbox.coey.dev/og.jpg" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="A dark aircraft cockpit with lit orange and green gauges" />
+    <meta property="og:image:alt" content="A BLACKBOX step table on graph paper with one step marked as the fault" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="BLACKBOX: replay a Pi agent run and find the fault" />
     <meta name="twitter:description" content="Upload a Pi --mode json log. BLACKBOX replays each step, uses the Clef model to score which step went wrong, and gives you a share URL." />
@@ -39,7 +40,7 @@
       }
     </script>
   </head>
-  <body class="bg-black text-zinc-200 antialiased">
+  <body class="bg-paper text-ink antialiased">
     <div id="app"></div>
     <script type="module" src="/src/app/main.ts"></script>
   </body>

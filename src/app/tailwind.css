@@ -1,7 +1,29 @@
 @import "tailwindcss";
 
+@theme {
+  --font-sans: "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --color-paper: #fbfbfa;
+  --color-ink: #111111;
+  --color-rule: #d4d4d2;
+  --color-faint: #ececea;
+  --color-dim: #5c5c5a;
+  --color-fault: #b42318;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-paper: #111111;
+    --color-ink: #e8e8e6;
+    --color-rule: #3a3a38;
+    --color-faint: #1c1c1b;
+    --color-dim: #a3a3a0;
+    --color-fault: #f2665a;
+  }
+}
+
 :focus-visible {
-  outline: 2px solid #fcd34d;
+  outline: 1px solid var(--color-ink);
   outline-offset: 2px;
 }
 
@@ -9,6 +31,7 @@ body {
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
     env(safe-area-inset-left);
   overflow-x: hidden;
+  font-variant-numeric: tabular-nums;
 }
 
 button,

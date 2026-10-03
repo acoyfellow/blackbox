@@ -1,8 +1,6 @@
 <script lang="ts">
 import type { RecordingView, Step } from '../shared/recording';
-import Altimeter from './Altimeter.svelte';
 import { friendlyError, narrate } from './api';
-import Gauge from './Gauge.svelte';
 
 let { view }: { view: RecordingView } = $props();
 
@@ -44,6 +42,8 @@ const risk = $derived(new Map(view.scores.map((score) => [score.index, score.pro
 
 const currentRisk = $derived(risk.get(cursor) ?? 0);
 
+const toolTotal = $derived(steps.filter((step) => step.kind === 'tool').length);
+
 const durationS = $derived(current ? (current.endMs - current.startMs) / 1000 : 0);
 
 $effect(() => {
@@ -73,17 +73,14 @@ async function startNarration() {
   narrating = false;
 }
 
-function barClass(step: Step): string {
-  if (step.index === view.failureIndex)
-    return 'bg-red-500 shadow-[0_0_14px_rgba(239,68,68,0.9)] animate-pulse';
+function seconds(ms: number): string {
+  return (ms / 1000).toFixed(1);
+}
 
-  if (step.isError) return 'bg-orange-500/80';
+function rowClass(step: Step): string {
+  if (step.index === cursor) return 'bg-faint';
 
-  if (step.kind === 'tool') return 'bg-emerald-400/80';
-
-  if (step.kind === 'assistant') return 'bg-sky-400/70';
-
-  return 'bg-zinc-500/60';
+  return step.index > cursor ? 'text-dim' : '';
 }
 
 function onKey(event: KeyboardEvent) {
@@ -98,84 +95,106 @@ function onKey(event: KeyboardEvent) {
 <svelte:window onkeydown={onKey} />
 
 <section class="flex flex-col gap-6">
-  <header class="flex flex-wrap items-end justify-between gap-4 border-b border-zinc-800 pb-4">
-    <div>
-      <div class="font-mono text-[10px] tracking-[0.4em] text-amber-400/80 uppercase">Recording {view.id}</div>
-      <h1 class="break-words text-2xl font-semibold text-zinc-100">{view.title}</h1>
-      <div class="font-mono text-xs text-zinc-500">{view.format} · {view.model} · {steps.length} waypoints</div>
+  <header class="flex flex-wrap items-end justify-between gap-4 border-b border-ink pb-3">
+    <div class="min-w-0">
+      <div class="font-mono text-[10px] tracking-[0.2em] text-dim uppercase">Recording {view.id}</div>
+      <h1 class="break-words text-2xl font-medium tracking-tight text-ink">{view.title}</h1>
+      <div class="font-mono text-xs text-dim">{view.format} · {view.model} · {steps.length} waypoints</div>
     </div>
-    <div class="flex items-center gap-3 font-mono text-xs">
+    <div class="font-mono text-xs">
       {#if view.failureIndex === null}
-        <span class="rounded-full border border-emerald-500/50 px-3 py-1 text-emerald-300">NO FAULT FOUND</span>
+        <span class="border border-rule px-3 py-1 text-ink">NO FAULT FOUND</span>
       {:else}
-        <button
-          class="animate-pulse rounded-full border border-red-500 px-3 py-1 text-red-400 hover:bg-red-500/10"
-          onclick={() => (cursor = view.failureIndex ?? 0)}
-        >
+        <button class="border border-fault px-3 text-fault hover:bg-faint" onclick={() => (cursor = view.failureIndex ?? 0)}>
           FAULT AT WAYPOINT {view.failureIndex}
         </button>
       {/if}
     </div>
   </header>
 
-  <div class="grid grid-cols-2 gap-6 rounded-2xl border border-zinc-800 bg-gradient-to-b from-zinc-900 to-black p-6 shadow-[inset_0_0_60px_rgba(0,0,0,0.9)] md:grid-cols-6">
-    <Gauge label="tools" value={tools} max={Math.max(4, steps.filter((s) => s.kind === 'tool').length)} display={`${tools}`} />
-    <Gauge label="faults" value={errors} max={Math.max(3, errors)} display={`${errors}`} alarm={errors > 0} />
-    <Gauge label="fault risk" value={currentRisk} max={1} display={`${Math.round(currentRisk * 100)}%`} alarm={currentRisk >= 0.5} />
-    <Gauge label="leg secs" value={durationS} max={60} display={durationS.toFixed(1)} />
-    <Altimeter label="cost" value={flownCost} max={totalCost} display={`$${flownCost.toFixed(3)}`} />
-    <Altimeter label="tokens" value={flownTokens} max={totalTokens} display={`${(flownTokens / 1000).toFixed(1)}k`} />
-  </div>
+  <dl class="grid grid-cols-2 border-t border-l border-rule font-mono sm:grid-cols-3 md:grid-cols-6">
+    {#each [
+      ['tools', `${tools} / ${toolTotal}`],
+      ['faults', `${errors}`],
+      ['fault risk', currentRisk.toFixed(3)],
+      ['leg secs', durationS.toFixed(1)],
+      ['cost', `$${flownCost.toFixed(3)} / $${totalCost.toFixed(3)}`],
+      ['tokens', `${(flownTokens / 1000).toFixed(1)}k / ${(totalTokens / 1000).toFixed(1)}k`],
+    ] as [label, value] (label)}
+      <div class="border-r border-b border-rule bg-paper px-3 py-2">
+        <dt class="text-[10px] tracking-[0.15em] text-dim uppercase">{label}</dt>
+        <dd class="text-right text-sm text-ink {label === 'fault risk' && currentRisk >= 0.5 ? 'text-fault' : ''}">{value}</dd>
+      </div>
+    {/each}
+  </dl>
 
-  <div class="rounded-2xl border border-zinc-800 bg-zinc-950 p-4">
-    <div class="relative h-16 w-full">
+  <div class="border border-rule bg-paper p-3">
+    <div class="relative h-12 w-full border-b border-ink bg-[linear-gradient(90deg,var(--color-faint)_1px,transparent_1px)] bg-[size:10%_100%]">
       {#each steps as step (step.index)}
         <button
           aria-label="waypoint {step.index}"
-          class="absolute bottom-0 w-[max(6px,0.6%)] rounded-t-sm transition-all duration-300 {barClass(step)} {step.index === cursor ? 'ring-2 ring-amber-300' : ''} {step.index > cursor ? 'opacity-30' : ''}"
-          style:left="{(step.index / Math.max(1, steps.length - 1)) * 98}%"
-          style:height="{20 + (risk.get(step.index) ?? 0) * 80}%"
+          class="absolute bottom-0 min-h-0 w-px {step.index === view.failureIndex ? 'bg-fault w-[3px]' : 'bg-ink'} {step.index > cursor ? 'opacity-30' : ''}"
+          style:left="{(step.index / Math.max(1, steps.length - 1)) * 99.5}%"
+          style:height="{8 + (risk.get(step.index) ?? 0) * 92}%"
           onclick={() => (cursor = step.index)}
         ></button>
       {/each}
     </div>
-    <input
-      type="range"
-      min="0"
-      max={Math.max(0, steps.length - 1)}
-      bind:value={cursor}
-      aria-label="Scrub to a waypoint"
-      class="mt-3 w-full accent-amber-400"
-    />
-    <div class="mt-2 flex items-center justify-between font-mono text-xs text-zinc-500">
-      <button class="rounded border border-zinc-700 px-3 py-1 text-amber-300 hover:bg-zinc-800" aria-label={playing ? 'Pause replay' : 'Start replay'} onclick={() => (playing = !playing)}>
-        {playing ? '❚❚ HOLD' : '▶ REPLAY'}
+    <input type="range" min="0" max={Math.max(0, steps.length - 1)} bind:value={cursor} aria-label="Scrub to a waypoint" class="mt-2 w-full accent-[var(--color-ink)]" />
+    <div class="flex items-center justify-between font-mono text-xs text-dim">
+      <button class="border border-rule px-3 text-ink hover:border-ink" aria-label={playing ? 'Pause replay' : 'Start replay'} onclick={() => (playing = !playing)}>
+        {playing ? 'HOLD' : 'REPLAY'}
       </button>
-      <span>T+{((current?.endMs ?? 0) / 1000).toFixed(1)}s / {(span / 1000).toFixed(1)}s</span>
+      <span>T+{seconds(current?.endMs ?? 0)}s / {seconds(span)}s</span>
     </div>
+  </div>
+
+  <div class="overflow-x-auto border-t border-ink">
+    <table class="w-full border-collapse font-mono text-xs">
+      <thead>
+        <tr class="border-b border-rule text-left text-[10px] tracking-[0.15em] text-dim uppercase">
+          <th scope="col" class="py-1 pr-3 text-right font-normal">#</th>
+          <th scope="col" class="py-1 pr-3 text-right font-normal">T+s</th>
+          <th scope="col" class="py-1 pr-3 font-normal">Tool</th>
+          <th scope="col" class="py-1 pr-3 font-normal">Status</th>
+          <th scope="col" class="py-1 pr-3 text-right font-normal">Clef p</th>
+          <th scope="col" class="w-24 py-1 font-normal"><span class="sr-only">Clef bar</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {#each steps as step (step.index)}
+          <tr class="cursor-pointer border-b border-rule {rowClass(step)} {step.index === view.failureIndex ? 'text-fault' : ''}" onclick={() => (cursor = step.index)}>
+            <td class="py-1 pr-3 text-right">{String(step.index).padStart(3, '0')}</td>
+            <td class="py-1 pr-3 text-right">{seconds(step.startMs)}</td>
+            <td class="max-w-48 truncate py-1 pr-3">{step.kind} · {step.name}</td>
+            <td class="py-1 pr-3">{step.index === view.failureIndex ? 'FAULT' : step.isError ? 'ERROR' : 'OK'}</td>
+            <td class="py-1 pr-3 text-right">{(risk.get(step.index) ?? 0).toFixed(3)}</td>
+            <td class="py-1"><div class="h-1 w-24 bg-faint"><div class="h-1 {step.index === view.failureIndex ? 'bg-fault' : 'bg-dim'}" style:width="{(risk.get(step.index) ?? 0) * 100}%"></div></div></td>
+          </tr>
+        {/each}
+      </tbody>
+    </table>
   </div>
 
   <div class="grid gap-6 md:grid-cols-2">
     {#if current}
-      {#key current.index}
-        <article class="rounded-2xl border p-4 transition-colors duration-300 {current.index === view.failureIndex ? 'border-red-500/70 bg-red-950/30' : 'border-zinc-800 bg-zinc-950'}">
-          <div class="mb-2 flex items-center justify-between font-mono text-xs">
-            <span class="tracking-[0.3em] text-zinc-400 uppercase">WP {current.index} · {current.kind} · {current.name}</span>
-            <span class={current.isError ? 'text-orange-400' : 'text-emerald-400'}>{current.isError ? 'ERROR' : 'NOMINAL'}</span>
-          </div>
-          <p class="max-h-56 overflow-auto font-mono text-xs leading-relaxed break-words text-zinc-300">{current.summary || '—'}</p>
-        </article>
-      {/key}
+      <article class="border-t p-0 {current.index === view.failureIndex ? 'border-fault' : 'border-ink'}">
+        <div class="flex items-center justify-between border-b border-rule py-2 font-mono text-[10px] tracking-[0.15em] uppercase">
+          <span class="text-dim">WP {current.index} · {current.kind} · {current.name}</span>
+          <span class={current.index === view.failureIndex || current.isError ? 'text-fault' : 'text-ink'}>{current.isError ? 'ERROR' : 'NOMINAL'}</span>
+        </div>
+        <p class="max-h-56 overflow-auto py-2 font-mono text-xs leading-relaxed break-words text-ink">{current.summary || '—'}</p>
+      </article>
     {/if}
-    <article class="rounded-2xl border border-zinc-800 bg-zinc-950 p-4">
-      <div class="mb-2 flex items-center justify-between font-mono text-xs">
-        <h2 class="tracking-[0.3em] text-zinc-400 uppercase">Narration</h2>
-        <button class="rounded border border-zinc-700 px-3 py-1 text-sky-300 hover:bg-zinc-800 disabled:opacity-40" disabled={narrating} onclick={startNarration}>
+    <article class="border-t border-ink">
+      <div class="flex items-center justify-between border-b border-rule font-mono text-xs">
+        <h2 class="text-[10px] tracking-[0.15em] text-dim uppercase">Narration</h2>
+        <button class="border border-rule px-3 text-ink hover:border-ink disabled:opacity-40" disabled={narrating} onclick={startNarration}>
           {narrating ? 'ON AIR…' : 'NARRATE'}
         </button>
       </div>
-      <p aria-live="polite" class="min-h-24 text-sm leading-relaxed whitespace-pre-wrap text-sky-100/90">{#if narration}{narration}{:else if narrating}Waiting for the first words from Meta Llama 3.3 70B…{:else if !narrationProblem}Press NARRATE for a short summary of this run. The model can get step numbers or causes wrong. Check them against the timeline.{/if}{#if narrating}<span aria-hidden="true" class="animate-pulse">▍</span>{/if}</p>
-      {#if narrationProblem}<p role="alert" class="mt-2 font-mono text-xs text-red-300">{narrationProblem}</p>{/if}
+      <p aria-live="polite" class="min-h-24 py-2 text-sm leading-relaxed whitespace-pre-wrap text-ink">{#if narration}{narration}{:else if narrating}Waiting for the first words from Meta Llama 3.3 70B…{:else if !narrationProblem}Press NARRATE for a short summary of this run. The model can get step numbers or causes wrong. Check them against the timeline.{/if}{#if narrating}<span aria-hidden="true">▍</span>{/if}</p>
+      {#if narrationProblem}<p role="alert" class="mt-2 font-mono text-xs text-fault">{narrationProblem}</p>{/if}
     </article>
   </div>
 </section>
