@@ -8,7 +8,7 @@ import {
   redact,
   UPLOADS_PER_IP_PER_HOUR,
 } from '../shared/recording';
-import { GATEWAY, type JsonValue, NARRATOR_MODEL, narrationMessages, scoreSteps } from './clef';
+import { type JsonValue, NARRATOR_MODEL, narrationMessages, scoreSteps } from './clef';
 import type { Env } from './env';
 import {
   deleteRecording,
@@ -161,15 +161,11 @@ async function handleNarrate(env: Env, id: string): Promise<Response> {
 
   if (!view) return json({ error: 'not found' }, 404);
 
-  const stream = await env.AI.run(
-    NARRATOR_MODEL,
-    {
-      messages: narrationMessages(view.title, view.steps, view.failureIndex),
-      stream: true,
-      max_tokens: 400,
-    },
-    GATEWAY,
-  );
+  const stream = await env.AI.run(NARRATOR_MODEL, {
+    messages: narrationMessages(view.title, view.steps, view.failureIndex),
+    stream: true,
+    max_tokens: 400,
+  });
 
   if (!(stream instanceof ReadableStream)) return json({ error: 'narrator did not stream' }, 502);
 

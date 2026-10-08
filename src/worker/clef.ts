@@ -5,8 +5,6 @@ export const CLEF_MODEL = '@cf/cloudflare/clef';
 
 export const NARRATOR_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
 
-export const GATEWAY = { gateway: { id: 'default' } };
-
 const MAX_QUESTIONS = 64;
 
 export const FAILURE_QUESTION = 'Is this the step where the run went wrong?';
@@ -28,10 +26,8 @@ export interface NarratorInput {
 
 export type ClefInput = ReturnType<typeof clefPayload>;
 
-export type GatewayOptions = typeof GATEWAY;
-
 export interface AiBinding {
-  run(model: string, input: ClefInput | NarratorInput, options: GatewayOptions): Promise<AiReply>;
+  run(model: string, input: ClefInput | NarratorInput): Promise<AiReply>;
 }
 
 const clefReply = z.object({
@@ -86,7 +82,7 @@ export async function scoreSteps(ai: AiBinding, title: string, steps: Step[]): P
 
   for (let offset = 0; offset < steps.length; offset += MAX_QUESTIONS) {
     const window = steps.slice(offset, offset + MAX_QUESTIONS);
-    const raw = await ai.run(CLEF_MODEL, clefPayload(title, steps, window), GATEWAY);
+    const raw = await ai.run(CLEF_MODEL, clefPayload(title, steps, window));
     const answers = parseClefReply(raw);
 
     for (const step of window) {
